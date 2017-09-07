@@ -63,3 +63,26 @@ final[i, 5] <- delta_abund
 
 final.df <- data.frame(aou = final[,1], shifted_dist = final[,2], velocity = final[,3], bearing = final[,4], population_change = final[,5])
 write.csv(final.df, 'centroid_shifts_all_spp.csv')
+
+#convert bearing to compass direction
+for(bearng in final.df$bearing) {
+  if(bearng > -22.5 & bearng < 22.5){
+    print("north")
+  } else if(bearng > 22.5 & bearng < 67.5) {
+    print("northeast")
+    }  else if(bearng > 67.5 & bearng < 112.5) {
+        print("east") 
+         } else if(bearng > 112.5 & bearng < 157.5) {
+            print("southeast")
+         } else if(bearng > 157.5 & bearng < 180 | bearng < -157.5 & bearng > -180) {
+           print("south")
+         } else if(bearng < -22.5 & bearng > -67.5) {
+           print("northwest")
+         } else if(bearng < -67.5 & bearng > -112.5) {
+           print("west")
+         } else if(bearng < -112.5 & bearng >-157.5) {
+           print("southwest")
+         }
+}
+
+ 
