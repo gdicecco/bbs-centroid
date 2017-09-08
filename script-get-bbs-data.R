@@ -64,25 +64,25 @@ final[i, 5] <- delta_abund
 final.df <- data.frame(aou = final[,1], shifted_dist = final[,2], velocity = final[,3], bearing = final[,4], population_change = final[,5])
 write.csv(final.df, 'centroid_shifts_all_spp.csv')
 
-#convert bearing to compass direction
-for(bearng in final.df$bearing) {
-  if(bearng > -22.5 & bearng < 22.5){
-    print("north")
-  } else if(bearng > 22.5 & bearng < 67.5) {
-    print("northeast")
-    }  else if(bearng > 67.5 & bearng < 112.5) {
-        print("east") 
-         } else if(bearng > 112.5 & bearng < 157.5) {
-            print("southeast")
-         } else if(bearng > 157.5 & bearng < 180 | bearng < -157.5 & bearng > -180) {
-           print("south")
-         } else if(bearng < -22.5 & bearng > -67.5) {
-           print("northwest")
-         } else if(bearng < -67.5 & bearng > -112.5) {
-           print("west")
-         } else if(bearng < -112.5 & bearng >-157.5) {
-           print("southwest")
-         }
+#determine direction and abundance change per Huang et al methods
+
+files <- list.files("C:/Users/gdicecco/Documents/bbs-centroid/results")
+results.2 <- matrix(nrow = 35, ncol = 5)
+for(i in 1:35) {
+  test<- read.csv(files[i], header = TRUE)
+  
+  mod.test <- lm(test$centroid.lat ~ test$year)
+  sum <- summary(mod.test)
+  results.2[i,2] <- sum$coefficients[2,4]
+  results.2[i,1] <- sum$coefficients[2,1]
+  
+  mod.test.2 <- lm(test$centroid.lon ~ test$year)
+  sum.2 <- summary(mod.test.2)
+  results.2[i,4] <- sum.2$coefficients[2,4]
+  results.2[i,3] <- sum.2$coefficients[2,1]
+
+results.2[i,5] <- log(mean(test$mean_abund[9:10])/mean(test$mean_abund[1:2]))
 }
 
- 
+results.df <- data.frame(species = huang_species$Species, aou = huang_species$ID, shift_distance = final.df$shifted_dist, slope_lat = results.2[,1], pvalue_lat = results.2[,2], slope_lon = results.2[,3], pvalue_lon = results.2[,4], r = results.2[,5])
+write.csv(results.df, "centroid_abundance_shifts_all_spp.csv")
