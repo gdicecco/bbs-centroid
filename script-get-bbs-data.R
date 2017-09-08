@@ -48,7 +48,7 @@ results[j,2] <- sum(bobwhite.mean$latitude*bobwhite.mean$mean_abund, na.rm=TRUE)
 results[j,3] <- sum(bobwhite.mean$longitude*bobwhite.mean$mean_abund, na.rm=TRUE)/sum(bobwhite.mean$mean_abund, na.rm = TRUE)
 }
 bobwhite.centroid <- data.frame(year = results[,1], centroid.lat = results[,2], centroid.lon = results[,3], mean_abund = results[,4])
-write.csv(bobwhite.centroid, paste("AOU_", species, "_centroid_five_year_windows.csv"))
+write.csv(bobwhite.centroid, paste("AOU_", species, "_centroid_five_year_windows.csv", sep = ""))
 
 shift <- distGeo(bobwhite.centroid[1,3:2], bobwhite.centroid[10,3:2])/1000
 bring <- bearing(bobwhite.centroid[1,3:2], bobwhite.centroid[10,3:2])
