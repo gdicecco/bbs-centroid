@@ -5,8 +5,6 @@
 #install.packages("lazyeval")
 library("dplyr")
 
-setwd("C:/Users/gdicecco/Documents/bbs-centroid/results")
-
 #Read in BBS data
 routes <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\Databases\\BBS\\2017\\bbs_routes_20170712.csv")
 counts <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\Databases\\BBS\\2017\\bbs_counts_20170712.csv")
@@ -27,6 +25,7 @@ counts$stateroute <- counts$statenum*1000 + counts$route
 #Group routes by 5 year windows and spatial windows, check for routes in every time/spatial window
 scale <- 5
 routes.short$time.window <- scale*round(routes.short$year/scale) - 1
+scale <- 2
 routes.short$lat.window <- scale*floor(routes.short$latitude/scale) + scale/2
 routes.short$lon.window <- scale*floor(routes.short$longitude/scale) + scale/2
 routes.short$spatial.window <- paste(routes.short$lat.window, routes.short$lon.window, sep = "")
@@ -66,6 +65,10 @@ routes.subs <- filter(routes.short, stateroute %in% time.windows$stateroute | sp
 #Average routes for each spp over five year time windows, calculate centroid, record shifted distance, velocity, shift bearing, population change
 ##Pull relevant species/species totals from counts df
 counts.subs <- counts %>%
+  filter(year >= 1969) %>%
   filter(aou %in% huang_species$ID) %>%
   filter(stateroute %in% routes.subs$stateroute) %>%
   select(year, aou, speciestotal, stateroute)
+
+#Lose some stateroutes vs routes.subs in this command- fix
+counts.merged <- merge(routes.subs, counts.subs, by = c("stateroute", "year"))
