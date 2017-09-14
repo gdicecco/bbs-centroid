@@ -62,7 +62,6 @@ windows <- unique.rtes3 %>%
   filter(total == 10)
 
 routes.subs <- filter(routes.short, stateroute %in% time.windows$stateroute | spatial.window %in% windows$spatial.window)
-write.csv(routes.subs, "cleaned_bbs_routes.csv")
 
 #Average routes for each spp over five year time windows, calculate centroid, record shifted distance, velocity, shift bearing, population change
 ##Pull relevant species/species totals from counts df
@@ -70,4 +69,3 @@ counts.subs <- counts %>%
   filter(aou %in% huang_species$ID) %>%
   filter(stateroute %in% routes.subs$stateroute) %>%
   select(year, aou, speciestotal, stateroute)
-write.csv(counts.subs, "cleaned_bbs_counts.csv")
