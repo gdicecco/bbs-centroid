@@ -62,13 +62,11 @@ windows <- unique.rtes3 %>%
 
 routes.subs <- filter(routes.short, stateroute %in% time.windows$stateroute | spatial.window %in% windows$spatial.window)
 
-#Average routes for each spp over five year time windows, calculate centroid, record shifted distance, velocity, shift bearing, population change
-##Pull relevant species/species totals from counts df
+#Pull relevant species/species totals from counts df
 counts.subs <- counts %>%
   filter(year >= 1969) %>%
   filter(aou %in% huang_species$ID) %>%
   filter(stateroute %in% routes.subs$stateroute) %>%
   select(year, aou, speciestotal, stateroute)
 
-#Lose some stateroutes vs routes.subs in this command- fix
 counts.merged <- merge(routes.subs, counts.subs, by = c("stateroute", "year"))
