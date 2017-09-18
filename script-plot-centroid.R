@@ -4,7 +4,7 @@ longs = c(-125,-60)
 lats = c(25,50)
 
 library(maps)
-setwd("C:/Users/gdicecco/Documents/bbs-centroid/results2/")
+setwd("C:/Users/gdicecco/Documents/bbs-centroid/results4/")
 centroids <- read.csv("centroids_five_year_windows_all_spp.csv")
 
 #Blackcapped chickadee- 7350
