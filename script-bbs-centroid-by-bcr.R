@@ -1,27 +1,32 @@
-#install.packages("geosphere")
-#install.packages("dplyr")
-library("geosphere")
-library("dplyr")
+#### Group routes by BCR before centroid analysis ####
+library(dplyr)
+library(geosphere)
 
 #mean species abundance for each route over time.windows
 means <- counts.merged %>%
-  group_by(stateroute, latitude, longitude, aou, time.window) %>%
+  group_by(bcr, latitude, longitude, aou, time.window) %>%
   summarize(avg_abund = mean(speciestotal, na.rm = TRUE))
 
-#mean centroid for each species in five year time windows
-centroids <- means %>%
-  group_by(aou, time.window) %>%
+#mean centroid for each species in five year time windows/bcr
+centroids.bcr <- means %>%
+  group_by(aou, time.window, bcr) %>%
   summarize(centroid_lat = sum(latitude*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE), centroid_lon = sum(longitude*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE),
             mean_total_abund = mean(avg_abund))
-setwd("C:/Users/gdicecco/Documents/bbs-centroid/results2/")
-write.csv(centroids, "centroids_five_year_windows_all_spp.csv")
+
+#mean centroid weighted from bcr centroids
+centroids.bcr2 <- centroids.bcr %>%
+  group_by(aou, time.window) %>%
+  summarize(centroid_lat = sum(centroid_lat*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE), centroid_lon = sum(centroid_lon*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE),
+            mean_total_abund = mean(mean_total_abund))
+setwd("C:/Users/gdicecco/Documents/bbs-centroid/results4/")
+write.csv(centroids.bcr2, "centroids_five_year_windows_all_spp.csv")
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
 results <- matrix(nrow = 35, ncol = 9)
 for(i in 1:35) {
   species <- huang_species$ID[i]
   results[i,1] <- species
-  df <- centroids %>%
+  df <- centroids.bcr2 %>%
     filter(aou == species)
   
   results[i,2] <- distGeo(df[1,4:3], df[10,4:3])/1000
@@ -80,7 +85,8 @@ for(i in 1:35){
 results.df <- cbind(results.df, popchange)
 
 getwd()
-setwd("C:/Users/gdicecco/Documents/bbs-centroid/results2/")
+setwd("C:/Users/gdicecco/Documents/bbs-centroid/results4/")
 write.csv(results.df, "spatial-temporal-coverage-results.csv")
 
 final.df <- data.frame(species = huang_species$Species, aou= huang_species$ID, shiftdistance = spatial_temporal_coverage_results$shiftdist, velocity = spatial_temporal_coverage_results$velocity, direction = spatial_temporal_coverage_results$shiftdir, abundance = spatial_temporal_coverage_results$popchange)
+write.csv(final.df, "results_summarized.csv")

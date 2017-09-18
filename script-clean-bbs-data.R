@@ -18,8 +18,8 @@ huang_species <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\DiCecco\\huang-2
 routes$stateroute <- routes$statenum*1000 + routes$route
 weather$stateroute <-weather$statenum*1000 + weather$route
 RT1 <- subset(weather, runtype == 1, select = c("stateroute", "year"))
-RT1.routes <- merge(RT1, routes[ , c("stateroute", "latitude", "longitude")], by = "stateroute", all.x = TRUE)
-routes.short <- subset(RT1.routes, year >= 1969, select = c("stateroute", "year", "latitude", "longitude"))
+RT1.routes <- merge(RT1, routes[ , c("stateroute", "latitude", "longitude","bcr")], by = "stateroute", all.x = TRUE)
+routes.short <- subset(RT1.routes, year >= 1969, select = c("stateroute", "year", "latitude", "longitude", "bcr"))
 counts$stateroute <- counts$statenum*1000 + counts$route
 
 #Group routes by 5 year windows and spatial windows, check for routes in every time/spatial window
