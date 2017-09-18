@@ -79,3 +79,5 @@ results.df <- cbind(results.df, popchange)
 getwd()
 setwd("C:/Users/gdicecco/Documents/bbs-centroid/results2/")
 write.csv(results.df, "spatial-temporal-coverage-results.csv")
+
+final.df <- data.frame(species = huang_species$Species, aou= huang_species$ID, shiftdistance = spatial_temporal_coverage_results$shiftdist, velocity = spatial_temporal_coverage_results$velocity, direction = spatial_temporal_coverage_results$shiftdir, abundance = spatial_temporal_coverage_results$popchange)

@@ -3,8 +3,9 @@ library("geosphere")
 library("dplyr")
 
 final <- matrix(nrow = 35, ncol = 5)
+years <- seq(1969, 2016, by = 5)
 
-setwd("C:/Users/gdicecco/Documents/bbs-centroid/results")
+setwd("C:/Users/gdicecco/Documents/bbs-centroid/results3")
 
 for(i in 1:35) {
   species <- huang_species[i,1]
@@ -63,4 +64,44 @@ results.2[i,5] <- log(mean(test$mean_abund[9:10])/mean(test$mean_abund[1:2]))
 }
 
 results.df <- data.frame(species = huang_species$Species, aou = huang_species$ID, shift_distance = final.df$shifted_dist, slope_lat = results.2[,1], pvalue_lat = results.2[,2], slope_lon = results.2[,3], pvalue_lon = results.2[,4], r = results.2[,5])
+
+#assign shift directions
+direction <- c()
+for(i in 1:35){
+  slope <- results.df$slope_lat[i]
+  pval <- results.df$pvalue_lat[i]
+  if (slope > 0 & pval < 0.05) {
+    direction <- c(direction, "north")
+  } else if (slope < 0 & pval < 0.05) {
+    direction <- c(direction, "south")
+  } else 
+    direction <- c(direction, "")
+}
+results.df <- cbind(results.df, direction)
+
+direction2 <- c()
+for(i in 1:35){
+  slope <- results.df$slope_lon[i]
+  pval <- results.df$pvalue_lon[i]
+  if (slope > 0 & pval < 0.05) {
+    direction2 <- c(direction2, "east")
+  } else if (slope < 0 & pval < 0.05) {
+    direction2 <- c(direction2, "west")
+  } else 
+    direction2 <- c(direction2, "")
+}
+results.df <- cbind(results.df,direction2)
+results.df$shiftdir <- paste(results.df$direction,results.df$direction2, sep = "")
+
+popchange <- c()
+for(i in 1:35){
+  r <- results.df$r[i]
+  if (r > 0) {
+    popchange <- c(popchange, "increasing")
+  } else popchange <- c(popchange, "decreasing")
+}
+results.df <- cbind(results.df, popchange)
+
+getwd()
+setwd("C:/Users/gdicecco/Documents/bbs-centroid/results3/")
 write.csv(results.df, "centroid_abundance_shifts_all_spp.csv")
