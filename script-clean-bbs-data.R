@@ -25,7 +25,7 @@ counts$stateroute <- counts$statenum*1000 + counts$route
 #Group routes by 5 year windows and spatial windows, check for routes in every time/spatial window
 scale <- 5
 routes.short$time.window <- scale*round(routes.short$year/scale) - 1
-scale <- 2
+scale <- 1
 routes.short$lat.window <- scale*floor(routes.short$latitude/scale) + scale/2
 routes.short$lon.window <- scale*floor(routes.short$longitude/scale) + scale/2
 routes.short$spatial.window <- paste(routes.short$lat.window, routes.short$lon.window, sep = "")
@@ -60,7 +60,7 @@ windows <- unique.rtes3 %>%
   summarize(total= n()) %>%
   filter(total == 10)
 
-routes.subs <- filter(routes.short, stateroute %in% time.windows$stateroute | spatial.window %in% windows$spatial.window)
+routes.subs <- filter(routes.short, spatial.window %in% windows$spatial.window)
 
 #Pull relevant species/species totals from counts df
 counts.subs <- counts %>%

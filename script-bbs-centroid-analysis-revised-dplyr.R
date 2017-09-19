@@ -38,9 +38,21 @@ for(i in 1:35) {
   sum.2 <- summary(mod.test.2)
   results[i,9] <- sum.2$coefficients[2,4]
   results[i,8] <- sum.2$coefficients[2,1]
+  
+  points(df$centroid_lon[1], df$centroid_lat[1], pch = 16, col = 'red')
+  points(df$centroid_lon, df$centroid_lat, type = 'l')
+  points(df$centroid_lon[10], df$centroid_lat[10], pch = 17, col = 'blue')
+  text(df$centroid_lon[10], df$centroid_lat[10]+.6, species, cex = .75)
 }
-results.df <- data.frame(aou = results[,1], shiftdist = results[,2], velocity = results[,3], bearing = results[,4], r = results[,5],
-                         lat_slope = results[,6], lat_pval = results[,7], lon_slope = results[,8], lon_pval = results[,9])
+results.df <- data.frame(aou = results[,1], 
+                         shiftdist = results[,2], 
+                         velocity = results[,3], 
+                         bearing = results[,4], 
+                         r = results[,5],
+                         lat_slope = results[,6], 
+                         lat_pval = results[,7], 
+                         lon_slope = results[,8], 
+                         lon_pval = results[,9])
 
 #assign shift directions
 direction <- c()
