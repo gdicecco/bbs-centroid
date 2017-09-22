@@ -194,7 +194,7 @@ for(i in 1:35) {
     filter(aou == species)
   
   results.grids[i,2] <- distGeo(df[1,4:3], df[10,4:3])/1000
-  results.grids[i,3] <- results.bcr[i,2]/(2016-1969)
+  results.grids[i,3] <- results.grids[i,2]/(2016-1969)
   results.grids[i,4] <- bearing(df[1,4:3], df[10,4:3])
   results.grids[i,5] <- log(mean(df$mean_total_abund[9:10])/mean(df$mean_total_abund[1:2]))
   
