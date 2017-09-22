@@ -3,6 +3,8 @@
 library(dplyr)
 library(geosphere)
 library(maps)
+library(ggplot2)
+library(RColorBrewer)
 
 #Read in BBS data
 routes <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\Databases\\BBS\\2017\\bbs_routes_20170712.csv")
@@ -11,7 +13,7 @@ species <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\Databases\\BBS\\2017\\
 weather <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\Databases\\BBS\\2017\\bbs_weather_20170712.csv")
 
 #species used in Huang 2017 GCB
-huang_species <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\DiCecco\\huang-2017-bbs-spp.txt", header = TRUE, sep = "\t")
+huang_species <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\DiCecco\\huang-2017-bbs-species.csv", header = TRUE)
 
 #Remove routes weather runtype = 0
 routes$stateroute <- routes$statenum*1000 + routes$route
@@ -382,3 +384,36 @@ final.bcr.df <- data.frame(species = huang_species$Species,
                        direction = results.bcr.df$shiftdir, 
                        abundance = results.bcr.df$popchange)
 write.csv(final.bcr.df, "results-bcr-summarized.csv")
+
+####### Comparison figures #######
+#centroids by route
+final.df$analysis <- rep(x = "by_route", times = 35)
+#centroids by grid
+final.grids.df$analysis <- rep(x = "by_grid", times = 35)
+#centroids by bcr
+final.bcr.df$analysis <- rep(x = "by_bcr", times = 35)
+#huang data
+huang_species$analysis <- rep(x = "huang_et_al", times = 35)
+
+compiled.df <- rbind(final.df, final.grids.df, final.bcr.df, huang_species)
+compiled.df$aou <- as.factor(compiled.df$aou)
+ 
+#compare shift distance
+p <- ggplot(compiled.df, aes(x = aou, y = shiftdistance, fill = analysis)) + theme_bw() + geom_bar(stat = "identity") + facet_wrap(~analysis, ncol = 2) + scale_fill_brewer(palette = "Set1")
+p + coord_polar() + theme(legend.position = "none")
+
+ggplot(compiled.df, aes(x = aou, y = shiftdistance, color = analysis)) + theme_bw() + geom_point() + scale_color_brewer(palette = "Set1")
+
+ggplot(compiled.df, aes(analysis, shiftdistance)) + theme_bw() + geom_boxplot(fill = "gray")
+
+#compare shift direction
+compiled.df$direction <- factor(compiled.df$direction, levels = c("north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"))
+
+plot <- ggplot(na.omit(compiled.df), aes(x = direction, fill = analysis))+stat_count()+theme_bw()+labs(x = "Direction of centroid shift", y = "Number of Species") +
+  facet_wrap(~analysis, ncol = 2)+theme(axis.text.x = element_text(face = "bold", size = 7.5), legend.position = "none") + scale_fill_brewer(palette = "Set1")
+plot + coord_polar(start = -pi/8, direction = -1)
+
+#compare pop change
+ggplot(compiled.df, aes(x = abundance, fill = analysis))+stat_count()+theme_bw()+labs(x = "Population status", y = "Number of species") +
+  facet_wrap(~analysis, ncol = 2) + scale_fill_brewer(palette = "Set1") + theme(legend.position = "none")
+
