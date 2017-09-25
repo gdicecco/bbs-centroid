@@ -31,6 +31,20 @@ par(mfrow=c(1,1))
 longs = c(-125,-60)
 lats = c(26,50)
 
+#calcuate distance ratio- determine if centroid moves in consistent direction over time
+#input- df from for loop below (10 lat lon coordinates of centroid over time for 1 spp)
+distance.ratio <- function(x) {
+  fl <- distGeo(x[1,4:3], x[10,4:3])
+  
+  distances <- c()
+  for(i in 1:9) {
+    distances <- c(distances, distGeo(x[i, 4:3], x[i+1, 4:3]))
+  }
+  
+  sumdist <- sum(distances)
+  return(fl/sumdist)
+} 
+
 ####### Centroids by routes ############
 #Subset counts df for relevant spp and time period
 scale5 <- 5
@@ -61,7 +75,7 @@ plot(bcrshp, ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot
 mtext("Centroids by route",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results <- matrix(nrow = 35, ncol = 9)
+results <- matrix(nrow = 35, ncol = 10)
 for(i in 1:35) {
   species <- huang_species$aou[i]
   results[i,1] <- species
@@ -72,6 +86,7 @@ for(i in 1:35) {
   results[i,3] <- results[i,2]/(2016-1969)
   results[i,4] <- bearing(df[1,4:3], df[10,4:3])
   results[i,5] <- log(mean(df$mean_total_abund[9:10])/mean(df$mean_total_abund[1:2]))
+  results[i,10] <- distance.ratio(df)
   
   mod.test <- lm(df$centroid_lat ~ df$time.window)
   sum <- summary(mod.test)
@@ -96,7 +111,8 @@ results.df <- data.frame(aou = results[,1],
                                lat_slope = results[,6], 
                                lat_pval = results[,7], 
                                lon_slope = results[,8], 
-                               lon_pval = results[,9])
+                               lon_pval = results[,9],
+                         distance_ratio = results[,10])
 
 #assign shift directions
 direction.lat <- c()
@@ -141,7 +157,8 @@ final.df <- data.frame(species = huang_species$species,
                              shiftdistance = results.df$shiftdist, 
                              velocity = results.df$velocity, 
                              direction = results.df$shiftdir, 
-                             abundance = results.df$popchange)
+                             abundance = results.df$popchange,
+                       distanceratio = results.df$distance_ratio)
 #write.csv(final.df, "results-routes-summarized.csv")
 
 ####### Centroids by 1 degree grids ######
@@ -193,7 +210,7 @@ plot(bcrshp, ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot
 mtext("Centroids by 1 deg grid",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results.grids <- matrix(nrow = 35, ncol = 9)
+results.grids <- matrix(nrow = 35, ncol = 10)
 for(i in 1:35) {
   species <- huang_species$aou[i]
   results.grids[i,1] <- species
@@ -204,6 +221,7 @@ for(i in 1:35) {
   results.grids[i,3] <- results.grids[i,2]/(2016-1969)
   results.grids[i,4] <- bearing(df[1,4:3], df[10,4:3])
   results.grids[i,5] <- log(mean(df$mean_total_abund[9:10])/mean(df$mean_total_abund[1:2]))
+  results.grids[i,10] <- distance.ratio(df)
   
   mod.test <- lm(df$centroid_lat ~ df$time.window)
   sum <- summary(mod.test)
@@ -228,7 +246,8 @@ results.grids.df <- data.frame(aou = results.grids[,1],
                          lat_slope = results.grids[,6], 
                          lat_pval = results.grids[,7], 
                          lon_slope = results.grids[,8], 
-                         lon_pval = results.grids[,9])
+                         lon_pval = results.grids[,9],
+                         distance_ratio = results.grids[,10])
 
 #assign shift directions
 direction.lat <- c()
@@ -273,7 +292,8 @@ final.grids.df <- data.frame(species = huang_species$species,
                            shiftdistance = results.grids.df$shiftdist, 
                            velocity = results.grids.df$velocity, 
                            direction = results.grids.df$shiftdir, 
-                           abundance = results.grids.df$popchange)
+                           abundance = results.grids.df$popchange,
+                           distanceratio = results.grids.df$distance_ratio)
 #write.csv(final.grids.df, "results-grids-summarized.csv")
 
 
@@ -304,7 +324,7 @@ plot(bcrshp, ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot
 mtext("Centroids by 1 deg grid and BCR",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results.bcr <- matrix(nrow = 35, ncol = 9)
+results.bcr <- matrix(nrow = 35, ncol = 10)
 for(i in 1:35) {
   species <- huang_species$aou[i]
   results.bcr[i,1] <- species
@@ -315,6 +335,7 @@ for(i in 1:35) {
   results.bcr[i,3] <- results.bcr[i,2]/(2016-1969)
   results.bcr[i,4] <- bearing(df[1,4:3], df[10,4:3])
   results.bcr[i,5] <- log(mean(df$mean_total_abund[9:10])/mean(df$mean_total_abund[1:2]))
+  results.bcr[i,10] <- distance.ratio(df)
   
   mod.test <- lm(df$centroid_lat ~ df$time.window)
   sum <- summary(mod.test)
@@ -341,7 +362,8 @@ results.bcr.df <- data.frame(aou = results.bcr[,1],
                          lat_slope = results.bcr[,6], 
                          lat_pval = results.bcr[,7], 
                          lon_slope = results.bcr[,8], 
-                         lon_pval = results.bcr[,9])
+                         lon_pval = results.bcr[,9],
+                         distance_ratio = results.bcr[,10])
 
 #assign shift directions
 direction.lat <- c()
@@ -388,7 +410,8 @@ final.bcr.df <- data.frame(species = huang_species$species,
                        shiftdistance = results.bcr.df$shiftdist, 
                        velocity = results.bcr.df$velocity, 
                        direction = results.bcr.df$shiftdir, 
-                       abundance = results.bcr.df$popchange)
+                       abundance = results.bcr.df$popchange,
+                       distanceratio = results.bcr.df$distance_ratio)
 #write.csv(final.bcr.df, "results-bcr-summarized.csv")
 
 ####### Comparison figures #######
