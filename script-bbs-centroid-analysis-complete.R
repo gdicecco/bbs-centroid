@@ -14,7 +14,6 @@ species <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\Databases\\BBS\\2017\\
 weather <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\Databases\\BBS\\2017\\bbs_weather_20170712.csv")
 bcrshp <- readOGR("\\\\Bioark.bio.unc.edu\\hurlbertlab\\DiCecco\\bcr_terrestrial_shape\\BCR_Terrestrial_master.shp") #BCRs
 
-
 #species used in Huang 2017 GCB
 huang_species <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\DiCecco\\huang-2017-bbs-species.csv", header = TRUE)
 
@@ -422,6 +421,7 @@ final.grids.df$analysis <- rep(x = "By grid", times = 35)
 #centroids by bcr
 final.bcr.df$analysis <- rep(x = "By grid and BCR", times = 35)
 #huang data
+huang_species$distanceratio <- rep(NA)
 huang_species$analysis <- rep(x = "Huang et al.", times = 35)
 
 compiled.df <- rbind(final.df, final.grids.df, final.bcr.df, huang_species)
@@ -446,3 +446,10 @@ plot + coord_polar(start = -pi/8, direction = -1)
 ggplot(compiled.df, aes(x = abundance, fill = analysis))+stat_count()+theme_bw()+labs(x = "Population status", y = "Number of species") +
   facet_wrap(~analysis, ncol = 2) + scale_fill_brewer(palette = "Set1") + theme(legend.position = "none")
 
+#compare distance ratio
+sig_distance_ratio <- compiled.df %>%
+  filter(distanceratio > 0.4)
+
+sig_distance_ratio$analysis <- as.factor(sig_distance_ratio$analysis)
+ggplot(sig_distance_ratio, aes(x = aou, y = distanceratio, fill = analysis)) + theme_bw() + geom_bar(stat = "identity") + facet_wrap(~analysis, ncol = 1) + scale_fill_brewer(palette = "Set1") + labs(x = "AOU", y = "Distance Ratio") +
+  theme(legend.position = "none")
