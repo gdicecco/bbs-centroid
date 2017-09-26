@@ -31,10 +31,11 @@ longs = c(-125,-60)
 lats = c(26,50)
 
 #calcuate distance ratio- determine if centroid moves in consistent direction over time
-#input- df from for loop below (10 lat lon coordinates of centroid over time for 1 spp)
-distance.ratio <- function(AOU, randomizations = FALSE, n = 1000) {
+#input- centroids df with centroids per time window for all spp. (10 lat lon coordinates of centroid over 5 year time windows)
+#will subset centroids df for spp of interest by AOU
+distance.ratio <- function(df, AOU, randomizations = FALSE, n = 1000) {
   
-  x = filter(centroids, aou == AOU)
+  x = filter(df, aou == AOU)
   
   years = seq(1969, 2014, by = 5)
   
@@ -44,11 +45,11 @@ distance.ratio <- function(AOU, randomizations = FALSE, n = 1000) {
       sampleyears = sample(years, 10)
       distances <- c()
       for(i in 1:9) {
-        distances <- c(distances, distGeo(x[x$time.window == sampleyears[i], 4:3], 
-                                          x[x$time.window == sampleyears[i+1], 4:3]))
+        distances <- c(distances, distGeo(x[x$time.window == sampleyears[i], c("centroid_lon", "centroid_lat")], 
+                                          x[x$time.window == sampleyears[i+1], c("centroid_lon", "centroid_lat")]))
         sumdist <- sum(distances)
       }
-      fl <- distGeo(x[1,4:3], x[10,4:3])
+      fl <- distGeo(x[1,c("centroid_lon", "centroid_lat")], x[10,c("centroid_lon", "centroid_lat")])
       rand.ratios = c(rand.ratios, fl/sumdist)
     }
   } else {
@@ -58,24 +59,16 @@ distance.ratio <- function(AOU, randomizations = FALSE, n = 1000) {
   sampleyears = years
   distances <- c()
   for(i in 1:9) {
-    distances <- c(distances, distGeo(x[x$time.window == sampleyears[i], 4:3], 
-                                      x[x$time.window == sampleyears[i+1], 4:3]))
+    distances <- c(distances, distGeo(x[x$time.window == sampleyears[i], c("centroid_lon", "centroid_lat")], 
+                                      x[x$time.window == sampleyears[i+1], c("centroid_lon", "centroid_lat")]))
     sumdist <- sum(distances)
   }
+  fl <- distGeo(x[1,c("centroid_lon", "centroid_lat")], x[10,c("centroid_lon", "centroid_lat")])
   obs.ratio = fl/sumdist
   
   return(list(obs = obs.ratio, rand = rand.ratios))
 }    
     
-    
-  }
-  
-  }
-  
-  sumdist <- sum(distances)
-  return(fl/sumdist)
-} 
-
 ####### Centroids by routes ############
 #Subset counts df for relevant spp and time period
 scale5 <- 5
@@ -106,7 +99,7 @@ plot(bcrshp, ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot
 mtext("Centroids by route",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results <- matrix(nrow = 35, ncol = 10)
+results <- matrix(nrow = 35, ncol = 12)
 for(i in 1:35) {
   species <- huang_species$aou[i]
   results[i,1] <- species
@@ -117,7 +110,10 @@ for(i in 1:35) {
   results[i,3] <- results[i,2]/(2016-1969)
   results[i,4] <- bearing(df[1,4:3], df[10,4:3])
   results[i,5] <- log(mean(df$mean_total_abund[9:10])/mean(df$mean_total_abund[1:2]))
-  results[i,10] <- distance.ratio(df)
+  distratios <- distance.ratio(centroids, species, T)
+  results[i,10] <- distratios$obs
+  results[i,11] <- mean(distratios$rand)
+  results[i,12] <- sd(distratios$rand)
   
   mod.test <- lm(df$centroid_lat ~ df$time.window)
   sum <- summary(mod.test)
@@ -143,7 +139,9 @@ results.df <- data.frame(aou = results[,1],
                                lat_pval = results[,7], 
                                lon_slope = results[,8], 
                                lon_pval = results[,9],
-                         distance_ratio = results[,10])
+                         distance_ratio = results[, 10],
+                         dratio_rand_mean = results[, 11],
+                         dratio_rand_sd = results[,12])
 
 #assign shift directions
 direction.lat <- c()
@@ -182,7 +180,7 @@ for(i in 1:35){
 }
 results.df <- cbind(results.df, popchange)
 #setwd("C:/Users/gdicecco/Documents/bbs-centroid/centroids-by-routes/")
-#write.csv(results.df, "centroids-by-routes-results.csv")
+#write.csv(results.df, "centroids-by-routes-results.csv", row.names=F)
 final.df <- data.frame(species = huang_species$species, 
                              aou= huang_species$aou, 
                              shiftdistance = results.df$shiftdist, 
@@ -190,7 +188,7 @@ final.df <- data.frame(species = huang_species$species,
                              direction = results.df$shiftdir, 
                              abundance = results.df$popchange,
                        distanceratio = results.df$distance_ratio)
-#write.csv(final.df, "results-routes-summarized.csv")
+#write.csv(final.df, "results-routes-summarized.csv", row.names=F)
 
 ####### Centroids by 1 degree grids ######
 #Group routes by 5 year windows and spatial windows, check for routes in every time/spatial window
@@ -232,7 +230,7 @@ centroids.grids <- spp_abund_means %>%
   summarize(centroid_lat = sum(latitude*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE), centroid_lon = sum(longitude*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE),
             mean_total_abund = mean(avg_abund))
 #setwd("C:/Users/gdicecco/Documents/bbs-centroid/centroids-by-grids/")
-#write.csv(centroids.grids, "centroids-by-grids.csv")
+#write.csv(centroids.grids, "centroids-by-grids.csv", row.names=F)
 
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
@@ -241,7 +239,7 @@ plot(bcrshp, ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot
 mtext("Centroids by 1 deg grid",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results.grids <- matrix(nrow = 35, ncol = 10)
+results.grids <- matrix(nrow = 35, ncol = 12)
 for(i in 1:35) {
   species <- huang_species$aou[i]
   results.grids[i,1] <- species
@@ -252,7 +250,11 @@ for(i in 1:35) {
   results.grids[i,3] <- results.grids[i,2]/(2016-1969)
   results.grids[i,4] <- bearing(df[1,4:3], df[10,4:3])
   results.grids[i,5] <- log(mean(df$mean_total_abund[9:10])/mean(df$mean_total_abund[1:2]))
-  results.grids[i,10] <- distance.ratio(df)
+  distratios <- distance.ratio(centroids.grids, species, T)
+  results.grids[i,10] <- distratios$obs
+  results.grids[i,11] <- mean(distratios$rand)
+  results.grids[i,12] <- sd(distratios$rand)
+  
   
   mod.test <- lm(df$centroid_lat ~ df$time.window)
   sum <- summary(mod.test)
@@ -278,7 +280,9 @@ results.grids.df <- data.frame(aou = results.grids[,1],
                          lat_pval = results.grids[,7], 
                          lon_slope = results.grids[,8], 
                          lon_pval = results.grids[,9],
-                         distance_ratio = results.grids[,10])
+                         distance_ratio = results.grids[,10],
+                         dratio_rand_mean = results.grids[,11],
+                         dratio_rand_sd = results.grids[,12])
 
 #assign shift directions
 direction.lat <- c()
@@ -317,7 +321,7 @@ for(i in 1:35){
 }
 results.grids.df <- cbind(results.grids.df, popchange)
 #setwd("C:/Users/gdicecco/Documents/bbs-centroid/centroids-by-grids/")
-#write.csv(results.grids.df, "centroids-by-grids-results.csv")
+#write.csv(results.grids.df, "centroids-by-grids-results.csv", row.names=F)
 final.grids.df <- data.frame(species = huang_species$species, 
                            aou= huang_species$aou, 
                            shiftdistance = results.grids.df$shiftdist, 
@@ -325,13 +329,13 @@ final.grids.df <- data.frame(species = huang_species$species,
                            direction = results.grids.df$shiftdir, 
                            abundance = results.grids.df$popchange,
                            distanceratio = results.grids.df$distance_ratio)
-#write.csv(final.grids.df, "results-grids-summarized.csv")
+#write.csv(final.grids.df, "results-grids-summarized.csv", row.names=F)
 
 
-####### Centroids by 1 deg grids & BCR ########
+####### Centroids by BCR ########
 
 #mean centroid for each species in five year time windows/bcr
-spp_abund_means_bcr <- counts.merged %>%
+spp_abund_means_bcr <- counts.short.merged %>%
   group_by(stateroute, bcr, latitude, longitude, aou, time.window) %>%
   summarize(avg_abund = mean(speciestotal, na.rm = TRUE))
 
@@ -345,17 +349,17 @@ centroids.bcr2 <- centroids.bcr %>%
   group_by(aou, time.window) %>%
   summarize(centroid_lat = sum(centroid_lat*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE), centroid_lon = sum(centroid_lon*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE),
             mean_total_abund = mean(mean_total_abund))
-#setwd("C:/Users/gdicecco/Documents/bbs-centroid/centroids-by-grids-bcr/")
-#write.csv(centroids.bcr2, "centroids-by-grids-bcr.csv")
+#setwd("C:/Users/gdicecco/Documents/bbs-centroid/centroids-by-bcr/")
+#write.csv(centroids.bcr2, "centroids-by-bcr.csv", row.names=F)
 
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
 #map(database = "state", add = TRUE)
 plot(bcrshp, ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot centroids on BCR map
-mtext("Centroids by 1 deg grid and BCR",3,cex=2,line=.5)
+mtext("Centroids by BCR",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results.bcr <- matrix(nrow = 35, ncol = 10)
+results.bcr <- matrix(nrow = 35, ncol = 12)
 for(i in 1:35) {
   species <- huang_species$aou[i]
   results.bcr[i,1] <- species
@@ -366,7 +370,10 @@ for(i in 1:35) {
   results.bcr[i,3] <- results.bcr[i,2]/(2016-1969)
   results.bcr[i,4] <- bearing(df[1,4:3], df[10,4:3])
   results.bcr[i,5] <- log(mean(df$mean_total_abund[9:10])/mean(df$mean_total_abund[1:2]))
-  results.bcr[i,10] <- distance.ratio(df)
+  distratios <- distance.ratio(centroids.bcr2, species, T)
+  results.bcr[i,10] <- distratios$obs
+  results.bcr[i,11] <- mean(distratios$rand)
+  results.bcr[i,12] <- sd(distratios$rand)
   
   mod.test <- lm(df$centroid_lat ~ df$time.window)
   sum <- summary(mod.test)
@@ -394,7 +401,9 @@ results.bcr.df <- data.frame(aou = results.bcr[,1],
                          lat_pval = results.bcr[,7], 
                          lon_slope = results.bcr[,8], 
                          lon_pval = results.bcr[,9],
-                         distance_ratio = results.bcr[,10])
+                         distance_ratio = results.bcr[,10],
+                         dratio_rand_mean = results.bcr[,11],
+                         dratio_rand_sd = results.bcr[,12])
 
 #assign shift directions
 direction.lat <- c()
@@ -433,8 +442,8 @@ for(i in 1:35){
 }
 results.bcr.df <- cbind(results.bcr.df, popchange)
 
-#setwd("C:/Users/gdicecco/Documents/bbs-centroid/centroids-by-grids-bcr/")
-#write.csv(results.bcr.df, "centroids-by-grids-bcr-results.csv")
+#setwd("C:/Users/gdicecco/Documents/bbs-centroid/centroids-by-bcr/")
+#write.csv(results.bcr.df, "centroids-by-bcr-results.csv", row.names=F)
 
 final.bcr.df <- data.frame(species = huang_species$species, 
                        aou= huang_species$aou, 
@@ -443,7 +452,7 @@ final.bcr.df <- data.frame(species = huang_species$species,
                        direction = results.bcr.df$shiftdir, 
                        abundance = results.bcr.df$popchange,
                        distanceratio = results.bcr.df$distance_ratio)
-#write.csv(final.bcr.df, "results-bcr-summarized.csv")
+#write.csv(final.bcr.df, "results-bcr-summarized.csv", row.names=F)
 
 ####### Comparison figures #######
 #centroids by route
@@ -451,7 +460,7 @@ final.df$analysis <- rep(x = "By route", times = 35)
 #centroids by grid
 final.grids.df$analysis <- rep(x = "By grid", times = 35)
 #centroids by bcr
-final.bcr.df$analysis <- rep(x = "By grid and BCR", times = 35)
+final.bcr.df$analysis <- rep(x = "By BCR", times = 35)
 #huang data
 huang_species$distanceratio <- rep(NA)
 huang_species$analysis <- rep(x = "Huang et al.", times = 35)
@@ -460,28 +469,39 @@ compiled.df <- rbind(final.df, final.grids.df, final.bcr.df, huang_species)
 compiled.df$aou <- as.factor(compiled.df$aou)
  
 #compare shift distance
-p <- ggplot(compiled.df, aes(x = aou, y = shiftdistance, fill = analysis)) + theme_bw() + geom_bar(stat = "identity") + facet_wrap(~analysis, ncol = 2) + scale_fill_brewer(palette = "Set1")
-p + coord_polar() + theme(legend.position = "none") + labs(y = "Shift Distance", x = "AOU")
-
-ggplot(compiled.df, aes(x = aou, y = shiftdistance, color = analysis)) + theme_bw() + geom_point() + scale_color_brewer(palette = "Set1") + labs(x = "AOU", y = "Shift Distance", color = "Analysis")
+ggplot(compiled.df, aes(shiftdistance, fill = analysis)) + theme_bw() + geom_histogram(binwidth = 25) + facet_wrap(~analysis) + scale_fill_brewer(palette = "Set1") + labs(x = "Shift Distance (km)", y = "Count") + theme(legend.position = "none")
 
 ggplot(compiled.df, aes(analysis, shiftdistance)) + theme_bw() + geom_boxplot(fill = "gray") + labs(x = "Analysis", y = "Shift Distance")
+
+ggplot(compiled.df, aes(aou, shiftdistance, fill = analysis)) + theme_bw()+ geom_col() + facet_wrap(~analysis, ncol = 1) + theme(legend.position = "none") + scale_fill_brewer(palette = "Set1") + labs(x = "AOU", y = "Shift Distance")
 
 #compare shift direction
 compiled.df$direction <- factor(compiled.df$direction, levels = c("north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"))
 
-plot <- ggplot(na.omit(compiled.df), aes(x = direction, fill = analysis))+stat_count()+theme_bw()+labs(x = "Direction of centroid shift", y = "Number of Species") +
+plot <- ggplot(na.omit(compiled.df[,-7]), aes(x = direction, fill = analysis))+stat_count()+theme_bw()+labs(x = "Direction of centroid shift", y = "Number of Species") +
   facet_wrap(~analysis, ncol = 2)+theme(axis.text.x = element_text(face = "bold", size = 7.5), legend.position = "none") + scale_fill_brewer(palette = "Set1")
-plot + coord_polar(start = -pi/8, direction = -1)
+plot + coord_polar(start = -pi/8, direction = 1)
+
+ggplot(na.omit(compiled.df[,-7]), aes(x = direction, fill = analysis))+stat_count()+theme_bw()+labs(x = "Direction of Centroid Shift", y = "Number of Species") +
+  facet_wrap(~analysis, ncol = 2)+theme(legend.position = "none") + scale_fill_brewer(palette = "Set1")
 
 #compare pop change
-ggplot(compiled.df, aes(x = abundance, fill = analysis))+stat_count()+theme_bw()+labs(x = "Population status", y = "Number of species") +
+ggplot(compiled.df, aes(x = abundance, fill = analysis))+stat_count()+theme_bw()+labs(x = "Population Status", y = "Number of Species") +
   facet_wrap(~analysis, ncol = 2) + scale_fill_brewer(palette = "Set1") + theme(legend.position = "none")
 
 #compare distance ratio
-sig_distance_ratio <- compiled.df %>%
-  filter(distanceratio > 0.4)
+results.df$analysis <- rep(x = "By route", times = 35)
+#centroids by grid
+results.grids.df$analysis <- rep(x = "By grid", times = 35)
+#centroids by bcr
+results.bcr.df$analysis <- rep(x = "By BCR", times = 35)
+
+compiled.results.df <- rbind(results.df, results.grids.df, results.bcr.df)
+compiled.results.df$aou <- as.factor(compiled.results.df$aou)
+
+sig_distance_ratio <- compiled.results.df %>%
+  filter(distance_ratio > dratio_rand_mean + 2*dratio_rand_sd)
 
 sig_distance_ratio$analysis <- as.factor(sig_distance_ratio$analysis)
-ggplot(sig_distance_ratio, aes(x = aou, y = distanceratio, fill = analysis)) + theme_bw() + geom_bar(stat = "identity") + facet_wrap(~analysis, ncol = 1) + scale_fill_brewer(palette = "Set1") + labs(x = "AOU", y = "Distance Ratio") +
+ggplot(sig_distance_ratio, aes(x = aou, y = distance_ratio, fill = analysis)) + theme_bw() + geom_col() + facet_wrap(~analysis, ncol = 1) + scale_fill_brewer(palette = "Set1") + labs(x = "AOU", y = "Distance Ratio") +
   theme(legend.position = "none")
