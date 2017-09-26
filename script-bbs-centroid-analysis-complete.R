@@ -32,12 +32,44 @@ lats = c(26,50)
 
 #calcuate distance ratio- determine if centroid moves in consistent direction over time
 #input- df from for loop below (10 lat lon coordinates of centroid over time for 1 spp)
-distance.ratio <- function(x) {
-  fl <- distGeo(x[1,4:3], x[10,4:3])
+distance.ratio <- function(AOU, randomizations = FALSE, n = 1000) {
   
+  x = filter(centroids, aou == AOU)
+  
+  years = seq(1969, 2014, by = 5)
+  
+  if (randomizations) {
+    rand.ratios = c()
+    for (r in 1:n) {
+      sampleyears = sample(years, 10)
+      distances <- c()
+      for(i in 1:9) {
+        distances <- c(distances, distGeo(x[x$time.window == sampleyears[i], 4:3], 
+                                          x[x$time.window == sampleyears[i+1], 4:3]))
+        sumdist <- sum(distances)
+      }
+      fl <- distGeo(x[1,4:3], x[10,4:3])
+      rand.ratios = c(rand.ratios, fl/sumdist)
+    }
+  } else {
+    rand.ratios = NULL
+  }
+   
+  sampleyears = years
   distances <- c()
   for(i in 1:9) {
-    distances <- c(distances, distGeo(x[i, 4:3], x[i+1, 4:3]))
+    distances <- c(distances, distGeo(x[x$time.window == sampleyears[i], 4:3], 
+                                      x[x$time.window == sampleyears[i+1], 4:3]))
+    sumdist <- sum(distances)
+  }
+  obs.ratio = fl/sumdist
+  
+  return(list(obs = obs.ratio, rand = rand.ratios))
+}    
+    
+    
+  }
+  
   }
   
   sumdist <- sum(distances)
@@ -65,7 +97,7 @@ centroids <- route_spp_means %>%
   summarize(centroid_lat = sum(latitude*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE), centroid_lon = sum(longitude*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE),
             mean_total_abund = mean(avg_abund))
 #setwd("C:/Users/gdicecco/Documents/bbs-centroid/centroids-by-routes/")
-#write.csv(centroids, "centroids-by-routes.csv")
+#write.csv(centroids, "centroids-by-routes.csv", row.names=F)
 
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
