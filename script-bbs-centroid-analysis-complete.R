@@ -95,7 +95,7 @@ centroids <- route_spp_means %>%
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
 #map(database = "state", add = TRUE)
-plot(bcrshp, ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot centroids on BCR map
+plot(bcrshp[bcrshp$WATER == 3,], ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot centroids on BCR map
 mtext("Centroids by route",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
@@ -235,7 +235,7 @@ centroids.grids <- spp_abund_means %>%
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
 #map(database = "state", add = TRUE)
-plot(bcrshp, ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot centroids on BCR map
+plot(bcrshp[bcrshp$WATER == 3,], ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot centroids on BCR map
 mtext("Centroids by 1 deg grid",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
@@ -355,7 +355,7 @@ centroids.bcr2 <- centroids.bcr %>%
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
 #map(database = "state", add = TRUE)
-plot(bcrshp, ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot centroids on BCR map
+plot(bcrshp[bcrshp$WATER == 3,], ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot centroids on BCR map
 mtext("Centroids by BCR",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
