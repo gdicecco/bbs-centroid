@@ -476,10 +476,43 @@ ggplot(compiled.df, aes(analysis, shiftdistance)) + theme_bw() + geom_boxplot(fi
 ggplot(compiled.df, aes(aou, shiftdistance, fill = analysis)) + theme_bw()+ geom_col() + facet_wrap(~analysis, ncol = 1) + theme(legend.position = "none") + scale_fill_brewer(palette = "Set1") + labs(x = "AOU", y = "Shift Distance")
 
 #compare shift direction
+results.df$analysis <- rep(x = "By route", times = 35)
+#centroids by grid
+results.grids.df$analysis <- rep(x = "By grid", times = 35)
+#centroids by bcr
+results.bcr.df$analysis <- rep(x = "By BCR", times = 35)
+
+compiled.results.df <- rbind(results.df, results.grids.df, results.bcr.df)
+compiled.results.df$aou <- as.factor(compiled.results.df$aou)
+
+#assign shift directions
+direction.deg <- c()
+for(x in compiled.df$direction) {
+  if(x == "north") {
+    direction.deg <- c(direction.deg, 0)
+  } else if(x == "northeast") {
+    direction.deg <- c(direction.deg, 45)
+  } else if(x == "east") {
+    direction.deg <- c(direction.deg, 90)
+  } else if(x == "southeast") {
+    direction.deg <- c(direction.deg, 135)
+  } else if(x == "south") {
+    direction.deg <- c(direction.deg, 180)
+  } else if(x == "southwest") {
+    direction.deg <- c(direction.deg, 225)
+  } else if(x == "west") {
+    direction.deg <- c(direction.deg, 270)
+  } else if(x == "northwest") {
+    direction.deg <- c(direction.deg, 315)
+  } else if(x == "") {
+    direction.deg <- c(direction.deg, NA)
+  }
+}
+compiled.df <- cbind(compiled.df, direction.deg)
 compiled.df$direction <- factor(compiled.df$direction, levels = c("north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"))
 
-plot <- ggplot(na.omit(compiled.df[,-7]), aes(x = direction, fill = analysis))+stat_count()+theme_bw()+labs(x = "Direction of centroid shift", y = "Number of Species") +
-  facet_wrap(~analysis, ncol = 2)+theme(axis.text.x = element_text(face = "bold", size = 7.5), legend.position = "none") + scale_fill_brewer(palette = "Set1")
+plot <- ggplot(na.omit(compiled.df[,-7]), aes(x = direction.deg, fill = analysis))+stat_count()+theme_bw()+labs(x = "Direction of centroid shift", y = "Number of Species") +
+  facet_wrap(~analysis, ncol = 2)+theme(legend.position = "none") + scale_fill_brewer(palette = "Set1") + scale_x_continuous(breaks= c(0,90,180,270))
 plot + coord_polar(start = -pi/8, direction = 1)
 
 ggplot(na.omit(compiled.df[,-7]), aes(x = direction, fill = analysis))+stat_count()+theme_bw()+labs(x = "Direction of Centroid Shift", y = "Number of Species") +
@@ -490,15 +523,6 @@ ggplot(compiled.df, aes(x = abundance, fill = analysis))+stat_count()+theme_bw()
   facet_wrap(~analysis, ncol = 2) + scale_fill_brewer(palette = "Set1") + theme(legend.position = "none")
 
 #compare distance ratio
-results.df$analysis <- rep(x = "By route", times = 35)
-#centroids by grid
-results.grids.df$analysis <- rep(x = "By grid", times = 35)
-#centroids by bcr
-results.bcr.df$analysis <- rep(x = "By BCR", times = 35)
-
-compiled.results.df <- rbind(results.df, results.grids.df, results.bcr.df)
-compiled.results.df$aou <- as.factor(compiled.results.df$aou)
-
 sig_distance_ratio <- compiled.results.df %>%
   filter(distance_ratio > dratio_rand_mean + 2*dratio_rand_sd)
 
