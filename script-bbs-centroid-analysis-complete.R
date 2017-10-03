@@ -4,6 +4,7 @@ library(maps)
 library(ggplot2)
 library(RColorBrewer)
 library(rgdal)
+library(rgeos)
 
 ####### Data cleaning ######
 
@@ -13,6 +14,7 @@ counts <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\Databases\\BBS\\2017\\b
 species <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\Databases\\BBS\\2017\\bbs_species_20170712.csv")
 weather <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\Databases\\BBS\\2017\\bbs_weather_20170712.csv")
 bcrshp <- readOGR("\\\\Bioark.bio.unc.edu\\hurlbertlab\\DiCecco\\bcr_terrestrial_shape\\BCR_Terrestrial_master.shp") #BCRs
+##Typo in bcrshp - has TENNESSE
 
 #species used in Huang 2017 GCB
 huang_species <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\DiCecco\\huang-2017-bbs-species.csv", header = TRUE)
@@ -21,8 +23,8 @@ huang_species <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\DiCecco\\huang-2
 routes$stateroute <- routes$statenum*1000 + routes$route
 weather$stateroute <-weather$statenum*1000 + weather$route
 RT1 <- subset(weather, runtype == 1, select = c("stateroute", "year"))
-RT1.routes <- merge(RT1, routes[ , c("stateroute", "latitude", "longitude","bcr")], by = "stateroute", all.x = TRUE)
-routes.short <- subset(RT1.routes, year >= 1969, select = c("stateroute", "year", "latitude", "longitude", "bcr"))
+RT1.routes <- merge(RT1, routes[ , c("statenum", "stateroute", "latitude", "longitude","bcr")], by = "stateroute", all.x = TRUE)
+routes.short <- subset(RT1.routes, year >= 1969, select = c("statenum","stateroute", "year", "latitude", "longitude", "bcr"))
 counts$stateroute <- counts$statenum*1000 + counts$route
 
 #Plot centroid movement for each analysis
@@ -332,16 +334,46 @@ final.grids.df <- data.frame(species = huang_species$species,
 #write.csv(final.grids.df, "results-grids-summarized.csv", row.names=F)
 
 
-####### Centroids by BCR ########
+####### Centroids by strata ########
 
-#mean centroid for each species in five year time windows/bcr
-spp_abund_means_bcr <- counts.short.merged %>%
-  group_by(stateroute, bcr, latitude, longitude, aou, time.window) %>%
+#Calculate BCR/state strata centroids
+regioncodes <- read.table("C:/Users/gdicecco/Desktop/regioncodes.txt", sep = "\t")
+colnames(regioncodes) <- c("countrynum", "statenum", "PROVINCE_S")
+
+polys.df <- data.frame(BCR = c(0), BCRNAME = c(0), PROVINCE_S = c(0), COUNTRY = c(0), REGION = c(0),
+                       WATER = c(0), Shape_Leng = c(0), Shape_Area = c(0), x = c(0), y = c(0))
+for(state in regioncodes$state) {
+  shape <- subset(bcrshp, PROVINCE_S == as.character(state))
+  centers <- gCentroid(shape, byid = TRUE)
+  df.temp <- data.frame(cbind(shape@data, centers@coords))
+  polys.df <- rbind(polys.df, df.temp)
+}
+polys.df <- polys.df[-1,] #remove zero row
+polys.merged <- merge(regioncodes, polys.df, by = "PROVINCE_S", all.x = TRUE) #merge PROVINCE_S with statenum
+polys.merged.land <- subset(polys.merged, WATER == 3) #remove centroids for bodies of water
+
+#merge strata centroids with routes
+routes.short$statebcr <- routes.short$statenum*1000 + routes.short$bcr
+polys.merged.land$statebcr <- polys.merged.land$statenum*1000 + polys.merged.land$BCR
+routes.short.centers <- merge(routes.short, polys.merged.land, by = "statebcr")
+counts.merged.centers <- merge(routes.short.centers, counts.short, by = c("stateroute","year"))
+
+subs.routes4 <- counts.merged.centers %>%
+  group_by(aou, statebcr) %>%
+  distinct(stateroute) %>%
+  summarize(total = n()) %>%
+  filter(total > 4)
+
+counts.merged.subs.strata <- merge(counts.merged.centers, subs.routes4, by = c("aou","statebcr"))
+
+#mean centroid for each species in five year time windows per bcr/state strata
+spp_abund_means_bcr <- counts.merged.subs.strata %>%
+  group_by(statebcr, x, y, stateroute, bcr, latitude, longitude, aou, time.window) %>%
   summarize(avg_abund = mean(speciestotal, na.rm = TRUE))
 
 centroids.bcr <- spp_abund_means_bcr %>%
-  group_by(aou, time.window, bcr) %>%
-  summarize(centroid_lat = sum(latitude*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE), centroid_lon = sum(longitude*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE),
+  group_by(aou, time.window, statebcr) %>%
+  summarize(centroid_lat = sum(y*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE), centroid_lon = sum(x*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE),
             mean_total_abund = mean(avg_abund))
 
 #mean centroid weighted from bcr centroids
@@ -349,14 +381,14 @@ centroids.bcr2 <- centroids.bcr %>%
   group_by(aou, time.window) %>%
   summarize(centroid_lat = sum(centroid_lat*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE), centroid_lon = sum(centroid_lon*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE),
             mean_total_abund = mean(mean_total_abund))
-#setwd("C:/Users/gdicecco/Documents/bbs-centroid/centroids-by-bcr/")
-#write.csv(centroids.bcr2, "centroids-by-bcr.csv", row.names=F)
+#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata/")
+#write.csv(centroids.bcr2, "centroids-by-strata.csv", row.names=F)
 
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
 #map(database = "state", add = TRUE)
 plot(bcrshp[bcrshp$WATER == 3,], ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot centroids on BCR map
-mtext("Centroids by BCR",3,cex=2,line=.5)
+mtext("Centroids by strata",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
 results.bcr <- matrix(nrow = 35, ncol = 12)
