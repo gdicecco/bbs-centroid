@@ -606,6 +606,91 @@ abline(lm(compiled.results.df$bearing[compiled.results.df$analysis == "By strata
 close.screen(all = T)
 title(main = "Bearing (degrees)", outer = T)
 
+#shift direction multipanel
+scale45 <- 45
+compiled.results.df$roundbearing <- scale45*round(compiled.results.df$bearing/scale45)
+bearinghuang <- c()
+for(x in compiled.df$direction[compiled.df$analysis == "Huang et al."]) {
+  if(x == "north") {
+    bearinghuang <- c(bearinghuang, 0)
+  } else if (x == "northeast") {
+    bearinghuang <- c(bearinghuang, 45)
+  } else if (x == "east") {
+    bearinghuang <- c(bearinghuang,90)
+  } else if (x == "southeast") {
+    bearinghuang <- c(bearinghuang, 135)
+  } else if (x == "southwest") {
+    bearinghuang <- c(bearinghuang, -135)
+  } else if (x == "south") {
+    bearinghuang <- c(bearinghuang, -180)
+  } else if (x == "southwest") {
+    bearinghuang <- c(bearinghuang, -135)
+  } else if (x == "west") {
+    bearinghuang <- c(bearinghuang, -90)
+  } else if (x == "northwest") {
+    bearinghuang <- c(bearinghuang, -45)
+  }
+}
+
+#plot code
+par(bg = "white")
+par(new = T)
+plot.new()
+par(oma = c(0,0,4,0))
+split.screen(c(3,3))
+par(mar = c(5.1,4.1,4.1,2.1))
+
+screen(1)
+par(mar = c(3.1,4.1,3.1,2.1))
+plot(compiled.results.df$roundbearing[compiled.results.df$analysis == "By route"], compiled.results.df$roundbearing[compiled.results.df$analysis == "By grid"], xlab = "", ylab = "By grid", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.results.df$roundbearing[compiled.results.df$analysis == "By route"], compiled.results.df$roundbearing[compiled.results.df$analysis == "By grid"], label = compiled.results.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.results.df$roundbearing[compiled.results.df$analysis == "By grid"] ~ compiled.results.df$roundbearing[compiled.results.df$analysis == "By route"]), col = "blue")
+
+#by route, by strata
+screen(4)
+par(mar = c(3.1,4.1,2.1,2.1))
+plot(compiled.results.df$roundbearing[compiled.results.df$analysis == "By route"], compiled.results.df$roundbearing[compiled.results.df$analysis == "By strata"], xlab = "", ylab = "By strata", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.results.df$roundbearing[compiled.results.df$analysis == "By route"], compiled.results.df$roundbearing[compiled.results.df$analysis == "By strata"], label = compiled.results.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.results.df$roundbearing[compiled.results.df$analysis == "By strata"] ~ compiled.results.df$roundbearing[compiled.results.df$analysis == "By route"]), col = "blue")
+
+#by grid, by strata
+screen(5)
+par(mar = c(3.1,4.1,2.1,2.1))
+plot(compiled.results.df$roundbearing[compiled.results.df$analysis == "By grid"], compiled.results.df$roundbearing[compiled.results.df$analysis == "By strata"], xlab = "", ylab = "", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.results.df$roundbearing[compiled.results.df$analysis == "By grid"], compiled.results.df$roundbearing[compiled.results.df$analysis == "By strata"], label = compiled.results.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.results.df$roundbearing[compiled.results.df$analysis == "By strata"] ~ compiled.results.df$roundbearing[compiled.results.df$analysis == "By grid"]), col = "blue")
+
+#by route, huang et al.
+screen(7)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.results.df$roundbearing[compiled.results.df$analysis == "By route"], bearinghuang, xlab = "By route", ylab = "Huang et al.", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.results.df$roundbearing[compiled.results.df$analysis == "By route"], bearinghuang, label = compiled.results.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(bearinghuang ~ compiled.results.df$roundbearing[compiled.results.df$analysis == "By route"]), col = "blue")
+
+#by grid, huang et al.
+screen(8)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.results.df$roundbearing[compiled.results.df$analysis == "By grid"], bearinghuang, xlab = "By grid", ylab = "", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.results.df$roundbearing[compiled.results.df$analysis == "By grid"], bearinghuang, label = compiled.results.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(bearinghuang ~ compiled.results.df$roundbearing[compiled.results.df$analysis == "By grid"]), col = "blue")
+
+#by strata, huang et al.
+screen(9)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.results.df$roundbearing[compiled.results.df$analysis == "By strata"], bearinghuang, xlab = "By strata", ylab = "", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.results.df$roundbearing[compiled.results.df$analysis == "By strata"], bearinghuang, label = compiled.results.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(bearinghuang ~ compiled.results.df$roundbearing[compiled.results.df$analysis == "By route"]), col = "blue")
+
+close.screen(all = T)
+title(main = "Shift direction", outer = T)
+
+
 #compare pop change
 ggplot(compiled.df, aes(x = abundance, fill = analysis))+stat_count()+theme_bw()+labs(x = "Population Status", y = "Number of Species") +
   facet_wrap(~analysis, ncol = 2) + scale_fill_brewer(palette = "Set1") + theme(legend.position = "none")
