@@ -342,8 +342,8 @@ colnames(regioncodes) <- c("countrynum", "statenum", "PROVINCE_S")
 
 polys.df <- data.frame(BCR = c(0), BCRNAME = c(0), PROVINCE_S = c(0), COUNTRY = c(0), REGION = c(0),
                        WATER = c(0), Shape_Leng = c(0), Shape_Area = c(0), x = c(0), y = c(0))
-for(state in regioncodes$state) {
-  shape <- subset(bcrshp, PROVINCE_S == as.character(state))
+for(state in regioncodes$PROVINCE_S) {
+  shape <- subset(bcrshp, PROVINCE_S == state)
   centers <- gCentroid(shape, byid = TRUE)
   df.temp <- data.frame(cbind(shape@data, centers@coords))
   polys.df <- rbind(polys.df, df.temp)
@@ -474,8 +474,8 @@ for(i in 1:35){
 }
 results.bcr.df <- cbind(results.bcr.df, popchange)
 
-#setwd("C:/Users/gdicecco/Documents/bbs-centroid/centroids-by-bcr/")
-#write.csv(results.bcr.df, "centroids-by-bcr-results.csv", row.names=F)
+#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata/")
+#write.csv(results.bcr.df, "centroids-by-strata-results.csv", row.names=F)
 
 final.bcr.df <- data.frame(species = huang_species$species, 
                        aou= huang_species$aou, 
@@ -484,7 +484,7 @@ final.bcr.df <- data.frame(species = huang_species$species,
                        direction = results.bcr.df$shiftdir, 
                        abundance = results.bcr.df$popchange,
                        distanceratio = results.bcr.df$distance_ratio)
-#write.csv(final.bcr.df, "results-bcr-summarized.csv", row.names=F)
+#write.csv(final.bcr.df, "results-strata-summarized.csv", row.names=F)
 
 ####### Comparison figures #######
 #centroids by route
@@ -492,72 +492,152 @@ final.df$analysis <- rep(x = "By route", times = 35)
 #centroids by grid
 final.grids.df$analysis <- rep(x = "By grid", times = 35)
 #centroids by bcr
-final.bcr.df$analysis <- rep(x = "By BCR", times = 35)
+final.bcr.df$analysis <- rep(x = "By strata", times = 35)
 #huang data
 huang_species$distanceratio <- rep(NA)
 huang_species$analysis <- rep(x = "Huang et al.", times = 35)
 
+sppnumbers <- c(1:15, 17:36)
+
 compiled.df <- rbind(final.df, final.grids.df, final.bcr.df, huang_species)
+compiled.df$sppnumber <- rep(x = sppnumbers, times = 4)
 compiled.df$aou <- as.factor(compiled.df$aou)
  
+blank <- theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+
 #compare shift distance
-ggplot(compiled.df, aes(shiftdistance, fill = analysis)) + theme_bw() + geom_histogram(binwidth = 25) + facet_wrap(~analysis) + scale_fill_brewer(palette = "Set1") + labs(x = "Shift Distance (km)", y = "Count") + theme(legend.position = "none")
+##boxplot
+ggplot(compiled.df, aes(analysis, shiftdistance)) + theme_bw() + geom_boxplot(fill = "gray") + labs(x = "Analysis", y = "Shift Distance") + blank
 
-ggplot(compiled.df, aes(analysis, shiftdistance)) + theme_bw() + geom_boxplot(fill = "gray") + labs(x = "Analysis", y = "Shift Distance")
+##multipanel regression
+par(bg = "white")
+par(new = T)
+plot.new()
+par(oma = c(0,0,4,0))
+split.screen(c(3,3))
+par(mar = c(5.1,4.1,4.1,2.1))
 
-ggplot(compiled.df, aes(aou, shiftdistance, fill = analysis)) + theme_bw()+ geom_col() + facet_wrap(~analysis, ncol = 1) + theme(legend.position = "none") + scale_fill_brewer(palette = "Set1") + labs(x = "AOU", y = "Shift Distance")
+screen(1)
+par(mar = c(3.1,4.1,3.1,2.1))
+plot(compiled.df$shiftdistance[compiled.df$analysis == "By route"], compiled.df$shiftdistance[compiled.df$analysis == "By grid"], xlab = "", ylab = "By grid", type="n", ylim = c(0,750), xlim = c(0,750))
+text(compiled.df$shiftdistance[compiled.df$analysis == "By route"], compiled.df$shiftdistance[compiled.df$analysis == "By grid"], label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.df$shiftdistance[compiled.df$analysis == "By grid"] ~ compiled.df$shiftdistance[compiled.df$analysis == "By route"]), col = "blue")
+
+screen(4)
+par(mar = c(3.1,4.1,2.1,2.1))
+plot(compiled.df$shiftdistance[compiled.df$analysis == "By route"], compiled.df$shiftdistance[compiled.df$analysis == "By strata"], xlab = "", ylab = "By strata", type = "n", ylim = c(0,750), xlim = c(0,750))
+text(compiled.df$shiftdistance[compiled.df$analysis == "By route"], compiled.df$shiftdistance[compiled.df$analysis == "By strata"], label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.df$shiftdistance[compiled.df$analysis == "By strata"] ~ compiled.df$shiftdistance[compiled.df$analysis == "By route"]), col = "blue")
+
+screen(5)
+par(mar = c(3.1,4.1,2.1,2.1))
+plot(compiled.df$shiftdistance[compiled.df$analysis == "By grid"], compiled.df$shiftdistance[compiled.df$analysis == "By strata"],xlab = "", ylab = "", type = "n", ylim = c(0,750), xlim = c(0,750))
+text(compiled.df$shiftdistance[compiled.df$analysis == "By grid"], compiled.df$shiftdistance[compiled.df$analysis == "By strata"], label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.df$shiftdistance[compiled.df$analysis == "By strata"] ~ compiled.df$shiftdistance[compiled.df$analysis == "By grid"]), col = "blue")
+
+screen(7)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.df$shiftdistance[compiled.df$analysis == "By route"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."],xlab = "By route", ylab = "Huang et al.", type = "n", ylim = c(0,750), xlim = c(0,750))
+text(compiled.df$shiftdistance[compiled.df$analysis == "By route"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."], label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."] ~ compiled.df$shiftdistance[compiled.df$analysis == "By route"]), col = "blue")
+
+screen(8)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.df$shiftdistance[compiled.df$analysis == "By grid"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."],xlab = "By grid", ylab = "", type = "n", ylim = c(0,750), xlim = c(0,750))
+text(compiled.df$shiftdistance[compiled.df$analysis == "By grid"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."], label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."] ~ compiled.df$shiftdistance[compiled.df$analysis == "By grid"]), col = "blue")
+
+screen(9)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.df$shiftdistance[compiled.df$analysis == "By strata"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."],xlab = "By strata", ylab = "", type = "n", ylim = c(0,750), xlim = c(0,750))
+text(compiled.df$shiftdistance[compiled.df$analysis == "By strata"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."], label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."] ~ compiled.df$shiftdistance[compiled.df$analysis == "By strata"]), col = "blue")
+close.screen(all = T)
+title(main = "Shift distance (km)", outer = T)
+
 
 #compare shift direction
 results.df$analysis <- rep(x = "By route", times = 35)
 #centroids by grid
 results.grids.df$analysis <- rep(x = "By grid", times = 35)
 #centroids by bcr
-results.bcr.df$analysis <- rep(x = "By BCR", times = 35)
+results.bcr.df$analysis <- rep(x = "By strata", times = 35)
 
 compiled.results.df <- rbind(results.df, results.grids.df, results.bcr.df)
+compiled.results.df$sppnumber <- rep(x = sppnumbers, times = 3)
 compiled.results.df$aou <- as.factor(compiled.results.df$aou)
 
-#assign shift directions
-direction.deg <- c()
-for(x in compiled.df$direction) {
-  if(x == "north") {
-    direction.deg <- c(direction.deg, 0)
-  } else if(x == "northeast") {
-    direction.deg <- c(direction.deg, 45)
-  } else if(x == "east") {
-    direction.deg <- c(direction.deg, 90)
-  } else if(x == "southeast") {
-    direction.deg <- c(direction.deg, 135)
-  } else if(x == "south") {
-    direction.deg <- c(direction.deg, 180)
-  } else if(x == "southwest") {
-    direction.deg <- c(direction.deg, 225)
-  } else if(x == "west") {
-    direction.deg <- c(direction.deg, 270)
-  } else if(x == "northwest") {
-    direction.deg <- c(direction.deg, 315)
-  } else if(x == "") {
-    direction.deg <- c(direction.deg, NA)
-  }
-}
-compiled.df <- cbind(compiled.df, direction.deg)
-compiled.df$direction <- factor(compiled.df$direction, levels = c("north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"))
+#multipanel shift direction regression plot
+par(bg = "white")
+par(new = T)
+plot.new()
+par(oma = c(0,0,2,0))
+split.screen(c(2,2))
+par(mar = c(5.1,4.1,4.1,2.1))
 
-plot <- ggplot(na.omit(compiled.df[,-7]), aes(x = direction.deg, fill = analysis))+stat_count()+theme_bw()+labs(x = "Direction of centroid shift", y = "Number of Species") +
-  facet_wrap(~analysis, ncol = 2)+theme(legend.position = "none") + scale_fill_brewer(palette = "Set1") + scale_x_continuous(breaks= c(0,90,180,270))
-plot + coord_polar(start = -pi/8, direction = 1)
+screen(1)
+par(mar = c(3.1,4.1,3.1,2.1))
+plot(compiled.results.df$bearing[compiled.results.df$analysis == "By route"], compiled.results.df$bearing[compiled.results.df$analysis == "By grid"], xlab = "", ylab = "By grid", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.results.df$bearing[compiled.results.df$analysis == "By route"], compiled.results.df$bearing[compiled.results.df$analysis == "By grid"], label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.results.df$bearing[compiled.results.df$analysis == "By grid"] ~ compiled.results.df$bearing[compiled.results.df$analysis == "By route"]), col = "blue")
 
-ggplot(na.omit(compiled.df[,-7]), aes(x = direction, fill = analysis))+stat_count()+theme_bw()+labs(x = "Direction of Centroid Shift", y = "Number of Species") +
-  facet_wrap(~analysis, ncol = 2)+theme(legend.position = "none") + scale_fill_brewer(palette = "Set1")
+screen(3)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.results.df$bearing[compiled.results.df$analysis == "By route"], compiled.results.df$bearing[compiled.results.df$analysis == "By strata"], xlab = "By route", ylab = "By strata", type = "n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.results.df$bearing[compiled.results.df$analysis == "By route"], compiled.results.df$bearing[compiled.results.df$analysis == "By strata"], label = compiled.results.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.results.df$bearing[compiled.results.df$analysis == "By strata"] ~ compiled.results.df$bearing[compiled.results.df$analysis == "By route"]), col = "blue")
+
+screen(4)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.results.df$bearing[compiled.results.df$analysis == "By grid"], compiled.results.df$bearing[compiled.results.df$analysis == "By strata"],xlab = "By grid", ylab = "", type = "n",ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.results.df$bearing[compiled.results.df$analysis == "By grid"], compiled.results.df$bearing[compiled.results.df$analysis == "By strata"], label = compiled.results.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.results.df$bearing[compiled.results.df$analysis == "By strata"] ~ compiled.results.df$bearing[compiled.results.df$analysis == "By grid"]), col = "blue")
+
+close.screen(all = T)
+title(main = "Bearing (degrees)", outer = T)
 
 #compare pop change
 ggplot(compiled.df, aes(x = abundance, fill = analysis))+stat_count()+theme_bw()+labs(x = "Population Status", y = "Number of Species") +
   facet_wrap(~analysis, ncol = 2) + scale_fill_brewer(palette = "Set1") + theme(legend.position = "none")
 
 #compare distance ratio
-sig_distance_ratio <- compiled.results.df %>%
-  filter(distance_ratio > dratio_rand_mean + 2*dratio_rand_sd)
+par(bg = "white")
+par(new = T)
+plot.new()
+par(oma = c(0,0,2,0))
+split.screen(c(2,2))
+par(mar = c(5.1,4.1,4.1,2.1))
 
-sig_distance_ratio$analysis <- as.factor(sig_distance_ratio$analysis)
-ggplot(sig_distance_ratio, aes(x = aou, y = distance_ratio, fill = analysis)) + theme_bw() + geom_col() + facet_wrap(~analysis, ncol = 1) + scale_fill_brewer(palette = "Set1") + labs(x = "AOU", y = "Distance Ratio") +
-  theme(legend.position = "none")
+screen(1)
+par(mar = c(3.1,4.1,3.1,2.1))
+plot(compiled.results.df$distance_ratio[compiled.results.df$analysis == "By route"], compiled.results.df$distance_ratio[compiled.results.df$analysis == "By grid"], xlab = "", ylab = "By grid", type="n", ylim = c(0,1), xlim = c(0,1))
+text(compiled.results.df$distance_ratio[compiled.results.df$analysis == "By route"], compiled.results.df$distance_ratio[compiled.results.df$analysis == "By grid"], label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.results.df$distance_ratio[compiled.results.df$analysis == "By grid"] ~ compiled.results.df$distance_ratio[compiled.results.df$analysis == "By route"]), col = "blue")
+
+screen(3)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.results.df$distance_ratio[compiled.results.df$analysis == "By route"], compiled.results.df$distance_ratio[compiled.results.df$analysis == "By strata"], xlab = "By route", ylab = "By strata", type = "n", ylim = c(0,1), xlim = c(0,1))
+text(compiled.results.df$distance_ratio[compiled.results.df$analysis == "By route"], compiled.results.df$distance_ratio[compiled.results.df$analysis == "By strata"], label = compiled.results.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.results.df$distance_ratio[compiled.results.df$analysis == "By strata"] ~ compiled.results.df$distance_ratio[compiled.results.df$analysis == "By route"]), col = "blue")
+
+screen(4)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.results.df$distance_ratio[compiled.results.df$analysis == "By grid"], compiled.results.df$distance_ratio[compiled.results.df$analysis == "By strata"],xlab = "By grid", ylab = "", type = "n",ylim = c(0,1), xlim = c(0,1))
+text(compiled.results.df$distance_ratio[compiled.results.df$analysis == "By grid"], compiled.results.df$distance_ratio[compiled.results.df$analysis == "By strata"], label = compiled.results.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.results.df$distance_ratio[compiled.results.df$analysis == "By strata"] ~ compiled.results.df$distance_ratio[compiled.results.df$analysis == "By grid"]), col = "blue")
+
+close.screen(all = T)
+title(main = "Distance ratio", outer = T)
