@@ -607,7 +607,7 @@ abline(lm(compiled.results.df$bearing[compiled.results.df$analysis == "By strata
 close.screen(all = T)
 title(main = "Bearing (degrees)", outer = T)
 
-#shift direction multipanel
+#shift direction multipanel using bearing for routes, grids, strata
 scale45 <- 45
 compiled.results.df$roundbearing <- scale45*round(compiled.results.df$bearing/scale45)
 bearinghuang <- c()
@@ -687,6 +687,144 @@ plot(compiled.results.df$roundbearing[compiled.results.df$analysis == "By strata
 text(compiled.results.df$roundbearing[compiled.results.df$analysis == "By strata"], bearinghuang, label = compiled.results.df$sppnumber[1:35])
 abline(0,1,col = "black")
 abline(lm(bearinghuang ~ compiled.results.df$roundbearing[compiled.results.df$analysis == "By route"]), col = "blue")
+
+close.screen(all = T)
+title(main = "Shift direction", outer = T)
+
+##shift direction multipanel with linear regression lat/lon direction trends
+compiled.df[is.na(compiled.df)] <- ""
+bearingroutes <- c()
+for(x in compiled.df$direction[compiled.df$analysis == "By route"]) {
+  if(x == "north") {
+    bearingroutes <- c(bearingroutes, 0)
+  } else if (x == "northeast") {
+    bearingroutes <- c(bearingroutes, 45)
+  } else if (x == "east") {
+    bearingroutes <- c(bearingroutes,90)
+  } else if (x == "southeast") {
+    bearingroutes <- c(bearingroutes, 135)
+  } else if (x == "southwest") {
+    bearingroutes <- c(bearingroutes, -135)
+  } else if (x == "south") {
+    bearingroutes <- c(bearingroutes, -180)
+  } else if (x == "southwest") {
+    bearingroutes <- c(bearingroutes, -135)
+  } else if (x == "west") {
+    bearingroutes <- c(bearingroutes, -90)
+  } else if (x == "northwest") {
+    bearingroutes <- c(bearingroutes, -45)
+  } else if (x == "") {
+    bearingroutes <- c(bearingroutes, NA)
+  }
+}
+
+bearinggrids <- c()
+for(x in compiled.df$direction[compiled.df$analysis == "By grid"]) {
+  if(x == "north") {
+    bearinggrids <- c(bearinggrids, 0)
+  } else if (x == "northeast") {
+    bearinggrids <- c(bearinggrids, 45)
+  } else if (x == "east") {
+    bearinggrids <- c(bearinggrids,90)
+  } else if (x == "southeast") {
+    bearinggrids <- c(bearinggrids, 135)
+  } else if (x == "southwest") {
+    bearinggrids <- c(bearinggrids, -135)
+  } else if (x == "south") {
+    bearinggrids <- c(bearinggrids, -180)
+  } else if (x == "southwest") {
+    bearinggrids <- c(bearinggrids, -135)
+  } else if (x == "west") {
+    bearinggrids <- c(bearinggrids, -90)
+  } else if (x == "northwest") {
+    bearinggrids <- c(bearinggrids, -45)
+  } else if (x == "") {
+    bearinggrids <- c(bearinggrids, NA)
+  }
+}
+
+bearingstrata <- c()
+for(x in compiled.df$direction[compiled.df$analysis == "By strata"]) {
+  if(x == "north") {
+    bearingstrata <- c(bearingstrata, 0)
+  } else if (x == "northeast") {
+    bearingstrata <- c(bearingstrata, 45)
+  } else if (x == "east") {
+    bearingstrata <- c(bearingstrata,90)
+  } else if (x == "southeast") {
+    bearingstrata <- c(bearingstrata, 135)
+  } else if (x == "southwest") {
+    bearingstrata <- c(bearingstrata, -135)
+  } else if (x == "south") {
+    bearingstrata <- c(bearingstrata, -180)
+  } else if (x == "southwest") {
+    bearingstrata <- c(bearingstrata, -135)
+  } else if (x == "west") {
+    bearingstrata <- c(bearingstrata, -90)
+  } else if (x == "northwest") {
+    bearingstrata <- c(bearingstrata, -45)
+  } else if (x == "") {
+    bearingstrata <- c(bearingstrata, NA)
+  }
+}
+
+bearinground <- c(bearingroutes, bearinggrids, bearingstrata, bearinghuang)
+compiled.df$directionround <- bearinground
+
+#plot bearinground
+par(bg = "white")
+par(new = T)
+plot.new()
+par(oma = c(0,0,4,0))
+split.screen(c(3,3))
+par(mar = c(5.1,4.1,4.1,2.1))
+
+screen(1)
+par(mar = c(3.1,4.1,3.1,2.1))
+plot(compiled.df$directionround[compiled.df$analysis == "By route"], compiled.df$directionround[compiled.df$analysis == "By grid"], xlab = "", ylab = "By grid", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.df$directionround[compiled.df$analysis == "By route"], compiled.df$directionround[compiled.df$analysis == "By grid"], label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.df$directionround[compiled.df$analysis == "By grid"] ~ compiled.df$directionround[compiled.df$analysis == "By route"]), col = "blue")
+
+#by route, by strata
+screen(4)
+par(mar = c(3.1,4.1,2.1,2.1))
+plot(compiled.df$directionround[compiled.df$analysis == "By route"], compiled.df$directionround[compiled.df$analysis == "By strata"], xlab = "", ylab = "By strata", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.df$directionround[compiled.df$analysis == "By route"], compiled.df$directionround[compiled.df$analysis == "By strata"], label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.df$directionround[compiled.df$analysis == "By strata"] ~ compiled.df$directionround[compiled.df$analysis == "By route"]), col = "blue")
+
+#by grid, by strata
+screen(5)
+par(mar = c(3.1,4.1,2.1,2.1))
+plot(compiled.df$directionround[compiled.df$analysis == "By grid"], compiled.df$directionround[compiled.df$analysis == "By strata"], xlab = "", ylab = "", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.df$directionround[compiled.df$analysis == "By grid"], compiled.df$directionround[compiled.df$analysis == "By strata"], label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.df$directionround[compiled.df$analysis == "By strata"] ~ compiled.df$directionround[compiled.df$analysis == "By grid"]), col = "blue")
+
+#by route, huang et al.
+screen(7)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.df$directionround[compiled.df$analysis == "By route"], bearinghuang, xlab = "By route", ylab = "Huang et al.", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.df$directionround[compiled.df$analysis == "By route"], bearinghuang, label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(bearinghuang ~ compiled.df$directionround[compiled.df$analysis == "By route"]), col = "blue")
+
+#by grid, huang et al.
+screen(8)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.df$directionround[compiled.df$analysis == "By grid"], bearinghuang, xlab = "By grid", ylab = "", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.df$directionround[compiled.df$analysis == "By grid"], bearinghuang, label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(bearinghuang ~ compiled.df$directionround[compiled.df$analysis == "By grid"]), col = "blue")
+
+#by strata, huang et al.
+screen(9)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.df$directionround[compiled.df$analysis == "By strata"], bearinghuang, xlab = "By strata", ylab = "", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.df$directionround[compiled.df$analysis == "By strata"], bearinghuang, label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(bearinghuang ~ compiled.df$directionround[compiled.df$analysis == "By route"]), col = "blue")
 
 close.screen(all = T)
 title(main = "Shift direction", outer = T)
