@@ -865,3 +865,26 @@ abline(lm(compiled.results.df$distance_ratio[compiled.results.df$analysis == "By
 
 close.screen(all = T)
 title(main = "Distance ratio", outer = T)
+
+###Make maps for lab meeting showing methods
+longs2 = c(-175,-60)
+lats2 = c(24,69)
+
+#all routes from 1969 - 2016, runtype = 1
+map(database = "world", xlim = longs2, ylim = lats2)
+map(database = "state", add = TRUE)
+points(routes.short$longitude, routes.short$latitude, pch = 16, cex = 0.1)
+
+#all routes from grid subset with grids
+map(database = "world", xlim = c(-125,-60), ylim = c(24,57))
+map.grid(c(longs2,lats2), nx = 66, ny = 46, col = "gray", lty = 1)
+map(database = "state", add = TRUE)
+points(routes.subs$longitude, routes.subs$latitude, pch = 16, cex = 0.1, col = "black")
+
+
+#all routes in strata with strata centers
+plot(bcrshp[bcrshp$WATER == 3,], ylim = lats2, xlim = longs2, border = "white", col = "white") #plot centroids on BCR map
+points(counts.merged.centers$longitude, counts.merged.centers$latitude, cex = 0.1, pch = 16, col = "gray73")
+plot(bcrshp[bcrshp$WATER == 3,], ylim = lats2, xlim = longs2, border = "black", add = TRUE)
+points(counts.merged.centers$x, counts.merged.centers$y, cex = 0.3, pch = 16, col = "red")
+legend(-174,40, legend = c("Routes","Geographic centers"), pch = 16, col = c("gray73", "red"), bty= "n")
