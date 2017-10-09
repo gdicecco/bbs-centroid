@@ -338,7 +338,7 @@ final.grids.df <- data.frame(species = huang_species$species,
 ####### Centroids by strata ########
 
 #Calculate BCR/state strata centroids
-regioncodes <- read.table("C:/Users/gdicecco/Desktop/regioncodes.txt", sep = "\t")
+regioncodes <- read.table("C:/Users/gdicecco/Desktop/git/bbs-centroid/regioncodes.txt", sep = "\t")
 colnames(regioncodes) <- c("countrynum", "statenum", "PROVINCE_S")
 
 polys.df <- data.frame(BCR = c(0), BCRNAME = c(0), PROVINCE_S = c(0), COUNTRY = c(0), REGION = c(0),
@@ -486,6 +486,54 @@ final.bcr.df <- data.frame(species = huang_species$species,
                        abundance = results.bcr.df$popchange,
                        distanceratio = results.bcr.df$distance_ratio)
 #write.csv(final.bcr.df, "results-strata-summarized.csv", row.names=F)
+
+########## Centroids by strata & weighted abundances #########
+
+#A - ratio of stratum area over the area of all strata where species is present
+#z - proportion of routes in specific strata on which spp was spotted
+#Abundance index = A*z*total mean abund for stratum
+#function abund.index: requires spp_abund_means_bcr, table with species abundances per route, year, statebcr
+#requires polys.merged.land, df of statebcr strata containing Shape_Area for each strata
+#requires routes.short.centers, df containing statebcrs and routes assigned to each strata
+#returns abundance index weighted by scaling factors A and Z
+abund.index <- function(year, spid, strata) {
+  ai <- spp_abund_means_bcr %>%
+    filter(time.window == year) %>%
+    filter(aou == spid) %>%
+    filter(statebcr == strata)
+  total.area <- sum(polys.merged.land$Shape_Area)
+  a <- polys.merged.land$Shape_Area[polys.merged.land$statebcr == strata]/total.area
+  z <- length(unique(ai$stateroute))/length(unique(routes.short.centers$stateroute[routes.short.centers$statebcr == strata]))
+  
+  index <- a*z*sum(ai$avg_abund)
+  return(index)
+}
+
+abundance.indices <- data.frame(statebcr = 0, x = 0, y = 0, bcr = 0, aou = 0, time.window = 0, abund.index = 0)
+
+for(species in huang_species$aou) {
+  bcrs <- spp_abund_means_bcr %>%
+    filter(aou == species) 
+  bcr.list <- unique(bcrs$statebcr)
+  for(b in bcr.list) {
+  for(year in seq(1969, 2016, by = 5)) {
+    if(b %in% bcrs$statebcr[bcrs$time.window == year]){
+    tseries <- bcrs %>%
+      filter(time.window == year, statebcr == b) 
+      index <- abund.index(year, species, b)
+      data <- data.frame(statebcr = b, x = tseries$x[tseries$statebcr == b], y = tseries$y[tseries$statebcr == b],
+                         bcr = tseries$bcr[tseries$statebcr == b],
+                    aou = species, time.window = year, abund.index = index)
+      abundance.indices <- rbind(abundance.indices, unique(data))
+    } else {
+      data <- data.frame(statebcr = bcr, x = NA, y = NA,
+                         bcr = NA,
+                         aou = species, time.window = year, abund.index = NA)
+      abundance.indices <- rbind(abundance.indices, unique(data))
+    }
+  }
+  } 
+}
 
 ####### Comparison figures #######
 #centroids by route
@@ -884,7 +932,7 @@ points(routes.subs$longitude, routes.subs$latitude, pch = 16, cex = 0.1, col = "
 
 #all routes in strata with strata centers
 plot(bcrshp[bcrshp$WATER == 3,], ylim = lats2, xlim = longs2, border = "white", col = "white") #plot centroids on BCR map
-points(counts.merged.centers$longitude, counts.merged.centers$latitude, cex = 0.1, pch = 16, col = "gray73")
+points(counts.merged.centers$longitude, counts.merged.centers$latitude, cex = 0.1, pch = 16, col = "gray40")
 plot(bcrshp[bcrshp$WATER == 3,], ylim = lats2, xlim = longs2, border = "black", add = TRUE)
-points(counts.merged.centers$x, counts.merged.centers$y, cex = 0.3, pch = 16, col = "red")
-legend(-174,40, legend = c("Routes","Geographic centers"), pch = 16, col = c("gray73", "red"), bty= "n")
+points(counts.merged.centers$x, counts.merged.centers$y, cex = 0.5, pch = 16, col = "red")
+legend(-174,40, legend = c("Routes","Geographic centers"), pch = 16, col = c("gray40", "red"), bty= "n")
