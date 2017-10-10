@@ -511,6 +511,7 @@ abund.index <- function(year, spid, strata) {
 
 abundance.indices <- data.frame(statebcr = 0, x = 0, y = 0, bcr = 0, aou = 0, time.window = 0, abund.index = 0)
 
+#Takes a really long time (starting @ 5:03 PM 10/9)
 for(species in huang_species$aou) {
   bcrs <- spp_abund_means_bcr %>%
     filter(aou == species) 
@@ -534,6 +535,113 @@ for(species in huang_species$aou) {
   }
   } 
 }
+
+#mean centroid weighted from strata specific abund indices
+centroids.weighted <- abundance.indices[-1,] %>%
+  group_by(aou, time.window) %>%
+  summarize(centroid_lat = sum(y*abund.index, na.rm = TRUE)/sum(abund.index, na.rm = TRUE), 
+            centroid_lon = sum(x*abund.index, na.rm = TRUE)/sum(abund.index, na.rm = TRUE),
+            mean_total_ai = mean(abund.index, na.rm = TRUE))
+
+plot(bcrshp[bcrshp$WATER == 3,], ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot centroids on BCR map
+mtext("Centroids by strata with weighted abundance index",3,cex=2,line=.5)
+
+#shifted distance, velocity, bearing of shift, population change, shift direction regression
+results.weighted <- matrix(nrow = 35, ncol = 12)
+for(i in 1:35) {
+  species <- huang_species$aou[i]
+  results.weighted[i,1] <- species
+  df <- centroids.weighted %>%
+    filter(aou == species)
+  
+  results.weighted[i,2] <- distGeo(df[1,4:3], df[10,4:3])/1000
+  results.weighted[i,3] <- results.weighted[i,2]/(2016-1969)
+  results.weighted[i,4] <- bearing(df[1,4:3], df[10,4:3])
+  results.weighted[i,5] <- log(mean(df$mean_total_ai[9:10])/mean(df$mean_total_ai[1:2]))
+  distratios <- distance.ratio(centroids.weighted, species, T)
+  results.weighted[i,10] <- distratios$obs
+  results.weighted[i,11] <- mean(distratios$rand)
+  results.weighted[i,12] <- sd(distratios$rand)
+  
+  mod.test <- lm(df$centroid_lat ~ df$time.window)
+  sum <- summary(mod.test)
+  results.weighted[i,7] <- sum$coefficients[2,4]
+  results.weighted[i,6] <- sum$coefficients[2,1]
+  
+  mod.test.2 <- lm(df$centroid_lon ~ df$time.window)
+  sum.2 <- summary(mod.test.2)
+  results.weighted[i,9] <- sum.2$coefficients[2,4]
+  results.weighted[i,8] <- sum.2$coefficients[2,1]
+  
+  points(df$centroid_lon[1], df$centroid_lat[1], pch = 16, col = 'red')
+  points(df$centroid_lon, df$centroid_lat, type = 'l')
+  points(df$centroid_lon[10], df$centroid_lat[10], pch = 17, col = 'blue')
+  text(df$centroid_lon[10], df$centroid_lat[10]+1, species, cex = .75)
+  
+  
+}
+results.weighted.df <- data.frame(aou = results.weighted[,1], 
+                             shiftdist = results.weighted[,2], 
+                             velocity = results.weighted[,3], 
+                             bearing = results.weighted[,4], 
+                             r = results.weighted[,5],
+                             lat_slope = results.weighted[,6], 
+                             lat_pval = results.weighted[,7], 
+                             lon_slope = results.weighted[,8], 
+                             lon_pval = results.weighted[,9],
+                             distance_ratio = results.weighted[,10],
+                             dratio_rand_mean = results.weighted[,11],
+                             dratio_rand_sd = results.weighted[,12])
+
+#assign shift directions
+direction.lat <- c()
+for(i in 1:35){
+  slope <- results.weighted.df$lat_slope[i]
+  pval <- results.weighted.df$lat_pval[i]
+  if (slope > 0 & pval < 0.05) {
+    direction.lat <- c(direction.lat, "north")
+  } else if (slope < 0 & pval < 0.05) {
+    direction.lat <- c(direction.lat, "south")
+  } else 
+    direction.lat <- c(direction.lat, "")
+}
+results.weighted.df <- cbind(results.weighted.df, direction.lat)
+
+direction.lon <- c()
+for(i in 1:35){
+  slope <- results.weighted.df$lon_slope[i]
+  pval <- results.weighted.df$lon_pval[i]
+  if (slope > 0 & pval < 0.05) {
+    direction.lon <- c(direction.lon, "east")
+  } else if (slope < 0 & pval < 0.05) {
+    direction.lon <- c(direction.lon, "west")
+  } else 
+    direction.lon <- c(direction.lon, "")
+}
+results.weighted.df <- cbind(results.weighted.df,direction.lon)
+results.weighted.df$shiftdir <- paste(results.weighted.df$direction.lat,results.weighted.df$direction.lon, sep = "")
+
+popchange <- c()
+for(i in 1:35){
+  r <- results.weighted.df$r[i]
+  if (r > 0) {
+    popchange <- c(popchange, "increasing")
+  } else popchange <- c(popchange, "decreasing")
+}
+results.weighted.df <- cbind(results.weighted.df, popchange)
+
+#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata/")
+#write.csv(results.weighted.df, "centroids-by-strata-results.csv", row.names=F)
+
+final.weighted.df <- data.frame(species = huang_species$species, 
+                           aou= huang_species$aou, 
+                           shiftdistance = results.weighted.df$shiftdist, 
+                           velocity = results.weighted.df$velocity, 
+                           direction = results.weighted.df$shiftdir, 
+                           abundance = results.weighted.df$popchange,
+                           distanceratio = results.weighted.df$distance_ratio)
+#write.csv(final.bcr.df, "results-strata-summarized.csv", row.names=F)
+
 
 ####### Comparison figures #######
 #centroids by route
