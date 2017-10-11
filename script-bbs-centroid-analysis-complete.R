@@ -202,12 +202,11 @@ routes.short$spatial.window <- paste(routes.short$lat.window, routes.short$lon.w
 
 ##Spatial grids that have observed routes for at least one year per time window
 route.windows <- routes.short %>%
-  select(stateroute, time.window, spatial.window) %>%
+  select(time.window, spatial.window) %>%
   unique() %>%
   group_by(spatial.window) %>%
   select(time.window) %>%
   unique() %>%
-  group_by(spatial.window) %>% ##Check this line - why group by twice?
   summarize(total = n()) %>%
   filter(total == 10)
 
@@ -224,22 +223,26 @@ counts.merged <- merge(routes.subs, counts.subs, by = c("stateroute", "year"))
 
 #mean species abundance for each route over time.windows
 spp_abund_means <- counts.merged %>%
-  group_by(stateroute, latitude, longitude, aou, time.window) %>%
+  group_by(stateroute, lat.window, lon.window, aou, time.window) %>%
   summarize(avg_abund = mean(speciestotal, na.rm = TRUE))
+
+spp_abund_means$ceiling.lat <- ceiling(spp_abund_means$lat.window)
+spp_abund_means$floor.lon <- floor(spp_abund_means$lon.window)
 
 #mean centroid for each species in five year time windows
 centroids.grids <- spp_abund_means %>%
   group_by(aou, lat.window, lon.window, time.window) %>% ##for each grid cell
-  summarize(centroid_lat = sum(latitude*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE), centroid_lon = sum(longitude*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE),
-            mean_total_abund = mean(avg_abund)) ##need to use center of grid cell
-#setwd("C:/Users/gdicecco/Documents/bbs-centroid/centroids-by-grids/")
-#write.csv(centroids.grids, "centroids-by-grids.csv", row.names=F)
+  summarize(centroid_lat = sum(ceiling.lat*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE),
+            centroid_lon = sum(floor.lon*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE),
+            mean_total_abund = mean(avg_abund)) 
 
 centroids.grids.2 <- centroids.grids %>% ##centroid over spatial windows
   group_by(aou, time.window) %>%
   summarize(centroid_lat = sum(centroid_lat*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE),
 centroid_lon = sum(centroid_lon*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE), 
 mean_total_abund = mean(mean_total_abund)) 
+#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-grids/")
+#write.csv(centroids.grids.2, "centroids-by-grids.csv", row.names=F)
 
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
@@ -329,8 +332,8 @@ for(i in 1:35){
   } else popchange <- c(popchange, "decreasing")
 }
 results.grids.df <- cbind(results.grids.df, popchange)
-#setwd("C:/Users/gdicecco/Documents/bbs-centroid/centroids-by-grids/")
-#write.csv(results.grids.df, "centroids-by-grids-results.csv", row.names=F)
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-grids/")
+write.csv(results.grids.df, "centroids-by-grids-results.csv", row.names=F)
 final.grids.df <- data.frame(species = huang_species$species, 
                            aou= huang_species$aou, 
                            shiftdistance = results.grids.df$shiftdist, 
@@ -338,7 +341,7 @@ final.grids.df <- data.frame(species = huang_species$species,
                            direction = results.grids.df$shiftdir, 
                            abundance = results.grids.df$popchange,
                            distanceratio = results.grids.df$distance_ratio)
-#write.csv(final.grids.df, "results-grids-summarized.csv", row.names=F)
+write.csv(final.grids.df, "results-grids-summarized.csv", row.names=F)
 
 
 ####### Centroids by strata ########
@@ -691,42 +694,42 @@ par(mar = c(5.1,4.1,4.1,2.1))
 
 screen(1)
 par(mar = c(3.1,4.1,3.1,2.1))
-plot(compiled.df$shiftdistance[compiled.df$analysis == "By route"], compiled.df$shiftdistance[compiled.df$analysis == "By grid"], xlab = "", ylab = "By grid", type="n", ylim = c(0,750), xlim = c(0,750))
+plot(compiled.df$shiftdistance[compiled.df$analysis == "By route"], compiled.df$shiftdistance[compiled.df$analysis == "By grid"], xlab = "", ylab = "By grid", type="n", ylim = c(0,935), xlim = c(0,935))
 text(compiled.df$shiftdistance[compiled.df$analysis == "By route"], compiled.df$shiftdistance[compiled.df$analysis == "By grid"], label = compiled.df$sppnumber[1:35])
 abline(0,1,col = "black")
 abline(lm(compiled.df$shiftdistance[compiled.df$analysis == "By grid"] ~ compiled.df$shiftdistance[compiled.df$analysis == "By route"]), col = "blue")
 
 screen(4)
 par(mar = c(3.1,4.1,2.1,2.1))
-plot(compiled.df$shiftdistance[compiled.df$analysis == "By route"], compiled.df$shiftdistance[compiled.df$analysis == "By strata"], xlab = "", ylab = "By strata", type = "n", ylim = c(0,750), xlim = c(0,750))
+plot(compiled.df$shiftdistance[compiled.df$analysis == "By route"], compiled.df$shiftdistance[compiled.df$analysis == "By strata"], xlab = "", ylab = "By strata", type = "n", ylim = c(0,935), xlim = c(0,935))
 text(compiled.df$shiftdistance[compiled.df$analysis == "By route"], compiled.df$shiftdistance[compiled.df$analysis == "By strata"], label = compiled.df$sppnumber[1:35])
 abline(0,1,col = "black")
 abline(lm(compiled.df$shiftdistance[compiled.df$analysis == "By strata"] ~ compiled.df$shiftdistance[compiled.df$analysis == "By route"]), col = "blue")
 
 screen(5)
 par(mar = c(3.1,4.1,2.1,2.1))
-plot(compiled.df$shiftdistance[compiled.df$analysis == "By grid"], compiled.df$shiftdistance[compiled.df$analysis == "By strata"],xlab = "", ylab = "", type = "n", ylim = c(0,750), xlim = c(0,750))
+plot(compiled.df$shiftdistance[compiled.df$analysis == "By grid"], compiled.df$shiftdistance[compiled.df$analysis == "By strata"],xlab = "", ylab = "", type = "n", ylim = c(0,935), xlim = c(0,935))
 text(compiled.df$shiftdistance[compiled.df$analysis == "By grid"], compiled.df$shiftdistance[compiled.df$analysis == "By strata"], label = compiled.df$sppnumber[1:35])
 abline(0,1,col = "black")
 abline(lm(compiled.df$shiftdistance[compiled.df$analysis == "By strata"] ~ compiled.df$shiftdistance[compiled.df$analysis == "By grid"]), col = "blue")
 
 screen(7)
 par(mar = c(5.1,4.1,2.1,2.1))
-plot(compiled.df$shiftdistance[compiled.df$analysis == "By route"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."],xlab = "By route", ylab = "Huang et al.", type = "n", ylim = c(0,750), xlim = c(0,750))
+plot(compiled.df$shiftdistance[compiled.df$analysis == "By route"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."],xlab = "By route", ylab = "Huang et al.", type = "n", ylim = c(0,935), xlim = c(0,935))
 text(compiled.df$shiftdistance[compiled.df$analysis == "By route"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."], label = compiled.df$sppnumber[1:35])
 abline(0,1,col = "black")
 abline(lm(compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."] ~ compiled.df$shiftdistance[compiled.df$analysis == "By route"]), col = "blue")
 
 screen(8)
 par(mar = c(5.1,4.1,2.1,2.1))
-plot(compiled.df$shiftdistance[compiled.df$analysis == "By grid"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."],xlab = "By grid", ylab = "", type = "n", ylim = c(0,750), xlim = c(0,750))
+plot(compiled.df$shiftdistance[compiled.df$analysis == "By grid"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."],xlab = "By grid", ylab = "", type = "n", ylim = c(0,935), xlim = c(0,935))
 text(compiled.df$shiftdistance[compiled.df$analysis == "By grid"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."], label = compiled.df$sppnumber[1:35])
 abline(0,1,col = "black")
 abline(lm(compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."] ~ compiled.df$shiftdistance[compiled.df$analysis == "By grid"]), col = "blue")
 
 screen(9)
 par(mar = c(5.1,4.1,2.1,2.1))
-plot(compiled.df$shiftdistance[compiled.df$analysis == "By strata"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."],xlab = "By strata", ylab = "", type = "n", ylim = c(0,750), xlim = c(0,750))
+plot(compiled.df$shiftdistance[compiled.df$analysis == "By strata"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."],xlab = "By strata", ylab = "", type = "n", ylim = c(0,935), xlim = c(0,935))
 text(compiled.df$shiftdistance[compiled.df$analysis == "By strata"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."], label = compiled.df$sppnumber[1:35])
 abline(0,1,col = "black")
 abline(lm(compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."] ~ compiled.df$shiftdistance[compiled.df$analysis == "By strata"]), col = "blue")
