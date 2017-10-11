@@ -505,14 +505,16 @@ abund.index <- function(year, spid, strata) {
   a <- polys.merged.land$Shape_Area[polys.merged.land$statebcr == strata]/total.area
   z <- length(unique(ai$stateroute))/length(unique(routes.short.centers$stateroute[routes.short.centers$statebcr == strata]))
   
-  index <- a*z*sum(ai$avg_abund)
+  index <- a*z*mean(ai$avg_abund, na.rm = TRUE)
   return(index)
 }
 
 abundance.indices <- data.frame(statebcr = 0, x = 0, y = 0, bcr = 0, aou = 0, time.window = 0, abund.index = 0)
 
-#Takes a really long time (starting @ 5:03 PM 10/9)
-for(species in huang_species$aou) {
+#Takes a really long time
+init.time = Sys.time()
+for(i in 1:length(huang_species$aou)) {
+  species <- huang_species$aou[i]
   bcrs <- spp_abund_means_bcr %>%
     filter(aou == species) 
   bcr.list <- unique(bcrs$statebcr)
@@ -533,7 +535,13 @@ for(species in huang_species$aou) {
       abundance.indices <- rbind(abundance.indices, unique(data))
     }
   }
-  } 
+  }
+  curr.time = Sys.time()
+  elapsed = curr.time - init.time
+  percelltime = elapsed/i
+  estimated.end = (length(huang_species$aou) - i)*percelltime + curr.time
+  print(paste(i, "out of", length(huang_species$aou), "; current time:", curr.time,
+              "; estimated end time:", estimated.end))
 }
 
 #mean centroid weighted from strata specific abund indices
