@@ -560,7 +560,7 @@ centroids.weighted <- abundance.indices[-1,] %>%
             centroid_lon = sum(x*abund.index, na.rm = TRUE)/sum(abund.index, na.rm = TRUE),
             mean_total_ai = mean(abund.index, na.rm = TRUE))
 
-plot(bcrshp[bcrshp$WATER == 3,], ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot centroids on BCR map
+plot(bcrshp[bcrshp$WATER == 3,], ylim = c(26,60), xlim = longs, border = "gray73", col = "gray95") #plot centroids on BCR map
 mtext("Centroids by strata with weighted abundance index",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
@@ -575,7 +575,7 @@ for(i in 1:35) {
   results.weighted[i,3] <- results.weighted[i,2]/(2016-1969)
   results.weighted[i,4] <- bearing(df[1,4:3], df[10,4:3])
   results.weighted[i,5] <- log(mean(df$mean_total_ai[9:10])/mean(df$mean_total_ai[1:2]))
-  distratios <- distance.ratio(centroids.weighted, species, T)
+  distratios <- distance.ratio(centroids.weighted, species, F)
   results.weighted[i,10] <- distratios$obs
   results.weighted[i,11] <- mean(distratios$rand)
   results.weighted[i,12] <- sd(distratios$rand)
@@ -647,8 +647,8 @@ for(i in 1:35){
 }
 results.weighted.df <- cbind(results.weighted.df, popchange)
 
-#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata/")
-#write.csv(results.weighted.df, "centroids-by-strata-results.csv", row.names=F)
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata-weighted-abund/")
+write.csv(results.weighted.df, "centroids-weighted-results.csv", row.names=F)
 
 final.weighted.df <- data.frame(species = huang_species$species, 
                            aou= huang_species$aou, 
@@ -657,7 +657,7 @@ final.weighted.df <- data.frame(species = huang_species$species,
                            direction = results.weighted.df$shiftdir, 
                            abundance = results.weighted.df$popchange,
                            distanceratio = results.weighted.df$distance_ratio)
-#write.csv(final.bcr.df, "results-strata-summarized.csv", row.names=F)
+write.csv(final.bcr.df, "results-strata-weighted-summarized.csv", row.names=F)
 
 
 ####### Comparison figures #######
@@ -667,14 +667,16 @@ final.df$analysis <- rep(x = "By route", times = 35)
 final.grids.df$analysis <- rep(x = "By grid", times = 35)
 #centroids by bcr
 final.bcr.df$analysis <- rep(x = "By strata", times = 35)
+#centroids weighted
+final.weighted.df$analysis <- rep(x = "By strata with weighted abund.", times = 35)
 #huang data
 huang_species$distanceratio <- rep(NA)
 huang_species$analysis <- rep(x = "Huang et al.", times = 35)
 
 sppnumbers <- c(1:15, 17:36)
 
-compiled.df <- rbind(final.df, final.grids.df, final.bcr.df, huang_species)
-compiled.df$sppnumber <- rep(x = sppnumbers, times = 4)
+compiled.df <- rbind(final.df, final.grids.df, final.bcr.df, final.weighted.df, huang_species)
+compiled.df$sppnumber <- rep(x = sppnumbers, times = 5)
 compiled.df$aou <- as.factor(compiled.df$aou)
  
 blank <- theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
@@ -743,9 +745,11 @@ results.df$analysis <- rep(x = "By route", times = 35)
 results.grids.df$analysis <- rep(x = "By grid", times = 35)
 #centroids by bcr
 results.bcr.df$analysis <- rep(x = "By strata", times = 35)
+#centroids weighted abund
+results.weighted.df$analysis <- rep(x = "By strata with weighted abund.", times = 35)
 
-compiled.results.df <- rbind(results.df, results.grids.df, results.bcr.df)
-compiled.results.df$sppnumber <- rep(x = sppnumbers, times = 3)
+compiled.results.df <- rbind(results.df, results.grids.df, results.bcr.df, results.weighted.df)
+compiled.results.df$sppnumber <- rep(x = sppnumbers, times = 4)
 compiled.results.df$aou <- as.factor(compiled.results.df$aou)
 
 #multipanel shift direction regression plot
@@ -941,7 +945,32 @@ for(x in compiled.df$direction[compiled.df$analysis == "By strata"]) {
   }
 }
 
-bearinground <- c(bearingroutes, bearinggrids, bearingstrata, bearinghuang)
+bearingweight <- c()
+for(x in compiled.df$direction[compiled.df$analysis == "By strata with weighted abund."]) {
+  if(x == "north") {
+    bearingweight <- c(bearingweight, 0)
+  } else if (x == "northeast") {
+    bearingweight <- c(bearingweight, 45)
+  } else if (x == "east") {
+    bearingweight <- c(bearingweight,90)
+  } else if (x == "southeast") {
+    bearingweight <- c(bearingweight, 135)
+  } else if (x == "southwest") {
+    bearingweight <- c(bearingweight, -135)
+  } else if (x == "south") {
+    bearingweight <- c(bearingweight, -180)
+  } else if (x == "southwest") {
+    bearingweight <- c(bearingweight, -135)
+  } else if (x == "west") {
+    bearingweight <- c(bearingweight, -90)
+  } else if (x == "northwest") {
+    bearingweight <- c(bearingweight, -45)
+  } else if (x == "") {
+    bearingweight <- c(bearingweight, NA)
+  }
+}
+
+bearinground <- c(bearingroutes, bearinggrids, bearingstrata, bearinghuang, bearingweight)
 compiled.df$directionround <- bearinground
 
 #plot bearinground
@@ -1038,6 +1067,72 @@ abline(lm(compiled.results.df$distance_ratio[compiled.results.df$analysis == "By
 
 close.screen(all = T)
 title(main = "Distance ratio", outer = T)
+
+##Weighted abundance & strata comparisons
+#multipanel shift direction regression plot
+par(bg = "white")
+par(new = T)
+plot.new()
+par(oma = c(0,0,2,0))
+split.screen(c(2,2))
+par(mar = c(5.1,4.1,4.1,2.1))
+
+screen(1)
+par(mar = c(3.1,4.1,3.1,2.1))
+plot(compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata"], compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata with weighted abund."], xlab = "", ylab = "By strata with weighted abund.", type="n", ylim = c(0,950), xlim = c(0,950))
+text(compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata"], compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata with weighted abund."], label = compiled.results.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata with weighted abund."] ~ compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata"]), col = "blue")
+
+screen(3)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."], xlab = "By strata", ylab = "Huang et al.", type = "n", ylim = c(0,950), xlim = c(0,950))
+text(compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata"], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."], label = compiled.results.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."] ~ compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata"]), col = "blue")
+
+screen(4)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata with weighted abund."], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."],xlab = "By strata with weighted abund.", ylab = "", type = "n",ylim = c(0,950), xlim = c(0,950))
+text(compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata with weighted abund."], compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."], label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.df$shiftdistance[compiled.df$analysis == "Huang et al."] ~ compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata with weighted abund."]), col = "blue")
+
+close.screen(all = T)
+title(main = "Shift Distance (km)", outer = T)
+
+#Weighted shifted direction
+par(bg = "white")
+par(new = T)
+plot.new()
+par(oma = c(0,0,2,0))
+split.screen(c(2,2))
+par(mar = c(5.1,4.1,4.1,2.1))
+
+screen(1)
+par(mar = c(3.1,4.1,3.1,2.1))
+plot(compiled.df$directionround[compiled.df$analysis == "By strata"], compiled.df$directionround[compiled.df$analysis == "By strata with weighted abund."], xlab = "", ylab = "By strata with weighted abund.", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.df$directionround[compiled.df$analysis == "By strata"], compiled.df$directionround[compiled.df$analysis == "By strata with weighted abund."], label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.df$directionround[compiled.df$analysis == "By strata with weighted abund."] ~ compiled.df$directionround[compiled.df$analysis == "By strata"]), col = "blue")
+
+screen(3)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.df$directionround[compiled.df$analysis == "By strata"], compiled.df$directionround[compiled.df$analysis == "Huang et al."], xlab = "By strata", ylab = "Huang et al.", type = "n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.df$directionround[compiled.df$analysis == "By strata"], compiled.df$directionround[compiled.df$analysis == "Huang et al."], label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.df$directionround[compiled.df$analysis == "Huang et al."] ~ compiled.df$directionround[compiled.df$analysis == "By strata"]), col = "blue")
+
+screen(4)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.df$directionround[compiled.df$analysis == "By strata with weighted abund."], compiled.df$directionround[compiled.df$analysis == "Huang et al."],xlab = "By strata with weighted abund.", ylab = "", type = "n",ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.df$directionround[compiled.df$analysis == "By strata with weighted abund."], compiled.df$directionround[compiled.df$analysis == "Huang et al."], label = compiled.df$sppnumber[1:35])
+abline(0,1,col = "black")
+abline(lm(compiled.df$directionround[compiled.df$analysis == "Huang et al."] ~ compiled.df$directionround[compiled.df$analysis == "By strata with weighted abund."]), col = "blue")
+
+close.screen(all = T)
+title(main = "Shift Direction", outer = T)
+
 
 ###Make maps for lab meeting showing methods
 longs2 = c(-175,-60)
