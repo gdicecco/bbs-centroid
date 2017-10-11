@@ -207,7 +207,7 @@ route.windows <- routes.short %>%
   group_by(spatial.window) %>%
   select(time.window) %>%
   unique() %>%
-  group_by(spatial.window) %>%
+  group_by(spatial.window) %>% ##Check this line - why group by twice?
   summarize(total = n()) %>%
   filter(total == 10)
 
@@ -229,11 +229,17 @@ spp_abund_means <- counts.merged %>%
 
 #mean centroid for each species in five year time windows
 centroids.grids <- spp_abund_means %>%
-  group_by(aou, time.window) %>%
+  group_by(aou, lat.window, lon.window, time.window) %>% ##for each grid cell
   summarize(centroid_lat = sum(latitude*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE), centroid_lon = sum(longitude*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE),
-            mean_total_abund = mean(avg_abund))
+            mean_total_abund = mean(avg_abund)) ##need to use center of grid cell
 #setwd("C:/Users/gdicecco/Documents/bbs-centroid/centroids-by-grids/")
 #write.csv(centroids.grids, "centroids-by-grids.csv", row.names=F)
+
+centroids.grids.2 <- centroids.grids %>% ##centroid over spatial windows
+  group_by(aou, time.window) %>%
+  summarize(centroid_lat = sum(centroid_lat*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE),
+centroid_lon = sum(centroid_lon*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE), 
+mean_total_abund = mean(mean_total_abund)) 
 
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
@@ -246,14 +252,14 @@ results.grids <- matrix(nrow = 35, ncol = 12)
 for(i in 1:35) {
   species <- huang_species$aou[i]
   results.grids[i,1] <- species
-  df <- centroids.grids %>%
+  df <- centroids.grids.2 %>%
     filter(aou == species)
   
   results.grids[i,2] <- distGeo(df[1,4:3], df[10,4:3])/1000
   results.grids[i,3] <- results.grids[i,2]/(2016-1969)
   results.grids[i,4] <- bearing(df[1,4:3], df[10,4:3])
   results.grids[i,5] <- log(mean(df$mean_total_abund[9:10])/mean(df$mean_total_abund[1:2]))
-  distratios <- distance.ratio(centroids.grids, species, T)
+  distratios <- distance.ratio(centroids.grids.2, species, F)
   results.grids[i,10] <- distratios$obs
   results.grids[i,11] <- mean(distratios$rand)
   results.grids[i,12] <- sd(distratios$rand)
