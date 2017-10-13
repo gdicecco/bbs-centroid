@@ -18,8 +18,10 @@ bcrshp <- readOGR("\\\\Bioark.bio.unc.edu\\hurlbertlab\\DiCecco\\bcr_terrestrial
 ##Typo in bcrshp - has TENNESSE
 
 #species used in Huang 2017 GCB
-huang_species <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\DiCecco\\huang-2017-bbs-species.csv", header = TRUE)
-
+huang_species <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\DiCecco\\BBS-centroids\\huang-2017-bbs-species.csv", header = TRUE)
+#all 57 species including those not presented in published paper
+huang_all_species <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\DiCecco\\BBS-centroids\\huang-2017-complete-species.csv", header = TRUE)
+huang_all_species <- huang_all_species[-26,]
 #Remove routes weather runtype = 0
 routes$stateroute <- routes$statenum*1000 + routes$route
 weather$stateroute <-weather$statenum*1000 + weather$route
@@ -78,7 +80,7 @@ scale5 <- 5
 routes.short$time.window <- scale5*round(routes.short$year/scale5) - 1
 counts.short <- counts %>%
   filter(year >= 1969) %>%
-  filter(aou %in% huang_species$aou) %>%
+  filter(aou %in% huang_all_species$aou) %>%
   select(year, aou, speciestotal, stateroute)
 counts.short.merged <- merge(routes.short, counts.short, by = c("stateroute", "year"))
 
@@ -92,19 +94,25 @@ centroids <- route_spp_means %>%
   group_by(aou, time.window) %>%
   summarize(centroid_lat = sum(latitude*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE), centroid_lon = sum(longitude*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE),
             mean_total_abund = mean(avg_abund))
-#setwd("C:/Users/gdicecco/Documents/bbs-centroid/centroids-by-routes/")
+#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/centroids-by-routes/")
 #write.csv(centroids, "centroids-by-routes.csv", row.names=F)
+
+centroids.complete.timewind <- centroids %>%
+  group_by(aou) %>%
+  select(time.window) %>%
+  summarize(total = n()) %>%
+  filter(total == 10)
 
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
 #map(database = "state", add = TRUE)
-plot(bcrshp[bcrshp$WATER == 3,], ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot centroids on BCR map
+plot(bcrshp[bcrshp$WATER == 3,], xlim = longs, ylim = lats, border = "gray73", col = "gray95") #plot centroids on BCR map
 mtext("Centroids by route",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results <- matrix(nrow = 35, ncol = 12)
-for(i in 1:35) {
-  species <- huang_species$aou[i]
+results <- matrix(nrow = 56, ncol = 12)
+for(i in 1:56) {
+  species <- huang_all_species$aou[i]
   results[i,1] <- species
   df <- centroids %>%
     filter(aou == species)
@@ -148,7 +156,7 @@ results.df <- data.frame(aou = results[,1],
 
 #assign shift directions
 direction.lat <- c()
-for(i in 1:35){
+for(i in 1:56){
   slope <- results.df$lat_slope[i]
   pval <- results.df$lat_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -161,7 +169,7 @@ for(i in 1:35){
 results.df <- cbind(results.df, direction.lat)
 
 direction.lon <- c()
-for(i in 1:35){
+for(i in 1:56){
   slope <- results.df$lon_slope[i]
   pval <- results.df$lon_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -175,23 +183,23 @@ results.df <- cbind(results.df,direction.lon)
 results.df$shiftdir <- paste(results.df$direction.lat,results.df$direction.lon, sep = "")
 
 popchange <- c()
-for(i in 1:35){
+for(i in 1:56){
   r <- results.df$r[i]
   if (r > 0) {
     popchange <- c(popchange, "increasing")
   } else popchange <- c(popchange, "decreasing")
 }
 results.df <- cbind(results.df, popchange)
-#setwd("C:/Users/gdicecco/Documents/bbs-centroid/centroids-by-routes/")
-#write.csv(results.df, "centroids-by-routes-results.csv", row.names=F)
-final.df <- data.frame(species = huang_species$species, 
-                             aou= huang_species$aou, 
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
+write.csv(results.df, "centroids-by-routes-results.csv", row.names=F)
+final.df <- data.frame(species = huang_all_species$English_Common_Name, 
+                             aou= huang_all_species$aou, 
                              shiftdistance = results.df$shiftdist, 
                              velocity = results.df$velocity, 
                              direction = results.df$shiftdir, 
                              abundance = results.df$popchange,
                        distanceratio = results.df$distance_ratio)
-#write.csv(final.df, "results-routes-summarized.csv", row.names=F)
+write.csv(final.df, "results-routes-summarized.csv", row.names=F)
 
 ####### Centroids by 1 degree grids ######
 #Group routes by 5 year windows and spatial windows, check for routes in every time/spatial window
@@ -215,7 +223,7 @@ routes.subs <- filter(routes.short, spatial.window %in% route.windows$spatial.wi
 #Pull relevant species/species totals from counts df
 counts.subs <- counts %>%
   filter(year >= 1969) %>%
-  filter(aou %in% huang_species$aou) %>%
+  filter(aou %in% huang_all_species$aou) %>%
   filter(stateroute %in% routes.subs$stateroute) %>%
   select(year, aou, speciestotal, stateroute)
 
@@ -241,7 +249,7 @@ centroids.grids.2 <- centroids.grids %>% ##centroid over spatial windows
   summarize(centroid_lat = sum(centroid_lat*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE),
 centroid_lon = sum(centroid_lon*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE), 
 mean_total_abund = mean(mean_total_abund)) 
-#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-grids/")
+#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
 #write.csv(centroids.grids.2, "centroids-by-grids.csv", row.names=F)
 
 #Plot centroid movement
@@ -251,9 +259,9 @@ plot(bcrshp[bcrshp$WATER == 3,], ylim = lats, xlim = longs, border = "gray73", c
 mtext("Centroids by 1 deg grid",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results.grids <- matrix(nrow = 35, ncol = 12)
-for(i in 1:35) {
-  species <- huang_species$aou[i]
+results.grids <- matrix(nrow = 56, ncol = 12)
+for(i in 1:56) {
+  species <- huang_all_species$aou[i]
   results.grids[i,1] <- species
   df <- centroids.grids.2 %>%
     filter(aou == species)
@@ -298,7 +306,7 @@ results.grids.df <- data.frame(aou = results.grids[,1],
 
 #assign shift directions
 direction.lat <- c()
-for(i in 1:35){
+for(i in 1:56){
   slope <- results.grids.df$lat_slope[i]
   pval <- results.grids.df$lat_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -311,7 +319,7 @@ for(i in 1:35){
 results.grids.df <- cbind(results.grids.df, direction.lat)
 
 direction.lon <- c()
-for(i in 1:35){
+for(i in 1:56){
   slope <- results.grids.df$lon_slope[i]
   pval <- results.grids.df$lon_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -325,17 +333,17 @@ results.grids.df <- cbind(results.grids.df,direction.lon)
 results.grids.df$shiftdir <- paste(results.grids.df$direction.lat,results.grids.df$direction.lon, sep = "")
 
 popchange <- c()
-for(i in 1:35){
+for(i in 1:56){
   r <- results.grids.df$r[i]
   if (r > 0) {
     popchange <- c(popchange, "increasing")
   } else popchange <- c(popchange, "decreasing")
 }
 results.grids.df <- cbind(results.grids.df, popchange)
-setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-grids/")
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
 write.csv(results.grids.df, "centroids-by-grids-results.csv", row.names=F)
-final.grids.df <- data.frame(species = huang_species$species, 
-                           aou= huang_species$aou, 
+final.grids.df <- data.frame(species = huang_all_species$English_Common_Name, 
+                           aou= huang_all_species$aou, 
                            shiftdistance = results.grids.df$shiftdist, 
                            velocity = results.grids.df$velocity, 
                            direction = results.grids.df$shiftdir, 
@@ -391,8 +399,8 @@ centroids.bcr2 <- centroids.bcr %>%
   group_by(aou, time.window) %>%
   summarize(centroid_lat = sum(centroid_lat*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE), centroid_lon = sum(centroid_lon*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE),
             mean_total_abund = mean(mean_total_abund))
-#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata/")
-#write.csv(centroids.bcr2, "centroids-by-strata.csv", row.names=F)
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
+write.csv(centroids.bcr2, "centroids-by-strata.csv", row.names=F)
 
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
@@ -401,9 +409,9 @@ plot(bcrshp[bcrshp$WATER == 3,], ylim = lats, xlim = longs, border = "gray73", c
 mtext("Centroids by strata",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results.bcr <- matrix(nrow = 35, ncol = 12)
-for(i in 1:35) {
-  species <- huang_species$aou[i]
+results.bcr <- matrix(nrow = 56, ncol = 12)
+for(i in 1:56) {
+  species <- huang_all_species$aou[i]
   results.bcr[i,1] <- species
   df <- centroids.bcr2 %>%
     filter(aou == species)
@@ -449,7 +457,7 @@ results.bcr.df <- data.frame(aou = results.bcr[,1],
 
 #assign shift directions
 direction.lat <- c()
-for(i in 1:35){
+for(i in 1:56){
   slope <- results.bcr.df$lat_slope[i]
   pval <- results.bcr.df$lat_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -462,7 +470,7 @@ for(i in 1:35){
 results.bcr.df <- cbind(results.bcr.df, direction.lat)
 
 direction.lon <- c()
-for(i in 1:35){
+for(i in 1:56){
   slope <- results.bcr.df$lon_slope[i]
   pval <- results.bcr.df$lon_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -476,7 +484,7 @@ results.bcr.df <- cbind(results.bcr.df,direction.lon)
 results.bcr.df$shiftdir <- paste(results.bcr.df$direction.lat,results.bcr.df$direction.lon, sep = "")
 
 popchange <- c()
-for(i in 1:35){
+for(i in 1:56){
   r <- results.bcr.df$r[i]
   if (r > 0) {
     popchange <- c(popchange, "increasing")
@@ -484,17 +492,17 @@ for(i in 1:35){
 }
 results.bcr.df <- cbind(results.bcr.df, popchange)
 
-#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata/")
-#write.csv(results.bcr.df, "centroids-by-strata-results.csv", row.names=F)
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
+write.csv(results.bcr.df, "centroids-by-strata-results.csv", row.names=F)
 
-final.bcr.df <- data.frame(species = huang_species$species, 
-                       aou= huang_species$aou, 
+final.bcr.df <- data.frame(species = huang_all_species$English_Common_Name, 
+                       aou= huang_all_species$aou, 
                        shiftdistance = results.bcr.df$shiftdist, 
                        velocity = results.bcr.df$velocity, 
                        direction = results.bcr.df$shiftdir, 
                        abundance = results.bcr.df$popchange,
                        distanceratio = results.bcr.df$distance_ratio)
-#write.csv(final.bcr.df, "results-strata-summarized.csv", row.names=F)
+write.csv(final.bcr.df, "results-strata-summarized.csv", row.names=F)
 
 ########## Centroids by strata & weighted abundances #########
 
@@ -520,10 +528,10 @@ abund.index <- function(year, spid, strata) {
 
 abundance.indices <- data.frame(statebcr = 0, x = 0, y = 0, bcr = 0, aou = 0, time.window = 0, abund.index = 0)
 
-#Takes a really long time
+#Takes a really long time ~10 hours
 init.time = Sys.time()
-for(i in 1:length(huang_species$aou)) {
-  species <- huang_species$aou[i]
+for(i in 1:length(huang_all_species$aou)) {
+  species <- huang_all_species$aou[i]
   bcrs <- spp_abund_means_bcr %>%
     filter(aou == species) 
   bcr.list <- unique(bcrs$statebcr)
@@ -538,7 +546,7 @@ for(i in 1:length(huang_species$aou)) {
                     aou = species, time.window = year, abund.index = index)
       abundance.indices <- rbind(abundance.indices, unique(data))
     } else {
-      data <- data.frame(statebcr = bcr, x = NA, y = NA,
+      data <- data.frame(statebcr = b, x = NA, y = NA,
                          bcr = NA,
                          aou = species, time.window = year, abund.index = NA)
       abundance.indices <- rbind(abundance.indices, unique(data))
@@ -548,8 +556,8 @@ for(i in 1:length(huang_species$aou)) {
   curr.time = Sys.time()
   elapsed = curr.time - init.time
   percelltime = elapsed/i
-  estimated.end = (length(huang_species$aou) - i)*percelltime + curr.time
-  print(paste(i, "out of", length(huang_species$aou), "; current time:", curr.time,
+  estimated.end = (length(huang_all_species$aou) - i)*percelltime + curr.time
+  print(paste(i, "out of", length(huang_all_species$aou), "; current time:", curr.time,
               "; estimated end time:", estimated.end))
 }
 
@@ -559,14 +567,15 @@ centroids.weighted <- abundance.indices[-1,] %>%
   summarize(centroid_lat = sum(y*abund.index, na.rm = TRUE)/sum(abund.index, na.rm = TRUE), 
             centroid_lon = sum(x*abund.index, na.rm = TRUE)/sum(abund.index, na.rm = TRUE),
             mean_total_ai = mean(abund.index, na.rm = TRUE))
+write.csv(centroids.weighted, "centroids-weighted-abund.csv", row.names = F)
 
-plot(bcrshp[bcrshp$WATER == 3,], ylim = c(26,60), xlim = longs, border = "gray73", col = "gray95") #plot centroids on BCR map
+plot(bcrshp[bcrshp$WATER == 3,], ylim = c(26,60), xlim = c(-140,-60), border = "gray73", col = "gray95") #plot centroids on BCR map
 mtext("Centroids by strata with weighted abundance index",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results.weighted <- matrix(nrow = 35, ncol = 12)
-for(i in 1:35) {
-  species <- huang_species$aou[i]
+results.weighted <- matrix(nrow = 56, ncol = 12)
+for(i in 1:56) {
+  species <- huang_all_species$aou[i]
   results.weighted[i,1] <- species
   df <- centroids.weighted %>%
     filter(aou == species)
@@ -612,7 +621,7 @@ results.weighted.df <- data.frame(aou = results.weighted[,1],
 
 #assign shift directions
 direction.lat <- c()
-for(i in 1:35){
+for(i in 1:56){
   slope <- results.weighted.df$lat_slope[i]
   pval <- results.weighted.df$lat_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -625,7 +634,7 @@ for(i in 1:35){
 results.weighted.df <- cbind(results.weighted.df, direction.lat)
 
 direction.lon <- c()
-for(i in 1:35){
+for(i in 1:56){
   slope <- results.weighted.df$lon_slope[i]
   pval <- results.weighted.df$lon_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -639,7 +648,7 @@ results.weighted.df <- cbind(results.weighted.df,direction.lon)
 results.weighted.df$shiftdir <- paste(results.weighted.df$direction.lat,results.weighted.df$direction.lon, sep = "")
 
 popchange <- c()
-for(i in 1:35){
+for(i in 1:56){
   r <- results.weighted.df$r[i]
   if (r > 0) {
     popchange <- c(popchange, "increasing")
@@ -647,11 +656,11 @@ for(i in 1:35){
 }
 results.weighted.df <- cbind(results.weighted.df, popchange)
 
-setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata-weighted-abund/")
+#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata-weighted-abund/")
 write.csv(results.weighted.df, "centroids-weighted-results.csv", row.names=F)
 
-final.weighted.df <- data.frame(species = huang_species$species, 
-                           aou= huang_species$aou, 
+final.weighted.df <- data.frame(species = huang_all_species$English_Common_Name, 
+                           aou= huang_all_species$aou, 
                            shiftdistance = results.weighted.df$shiftdist, 
                            velocity = results.weighted.df$velocity, 
                            direction = results.weighted.df$shiftdir, 
@@ -673,7 +682,7 @@ final.weighted.df$analysis <- rep(x = "By strata with weighted abund.", times = 
 huang_species$distanceratio <- rep(NA)
 huang_species$analysis <- rep(x = "Huang et al.", times = 35)
 
-sppnumbers <- c(1:15, 17:36)
+sppnumbers <- c(1:15, 17:35)
 
 compiled.df <- rbind(final.df, final.grids.df, final.bcr.df, final.weighted.df, huang_species)
 compiled.df$sppnumber <- rep(x = sppnumbers, times = 5)
@@ -740,13 +749,13 @@ title(main = "Shift distance (km)", outer = T)
 
 
 #compare shift direction
-results.df$analysis <- rep(x = "By route", times = 35)
+results.df$analysis <- rep(x = "By route", times = 56)
 #centroids by grid
-results.grids.df$analysis <- rep(x = "By grid", times = 35)
+results.grids.df$analysis <- rep(x = "By grid", times = 56)
 #centroids by bcr
-results.bcr.df$analysis <- rep(x = "By strata", times = 35)
+results.bcr.df$analysis <- rep(x = "By strata", times = 56)
 #centroids weighted abund
-results.weighted.df$analysis <- rep(x = "By strata with weighted abund.", times = 35)
+results.weighted.df$analysis <- rep(x = "By strata with weighted abund.", times = 56)
 
 compiled.results.df <- rbind(results.df, results.grids.df, results.bcr.df, results.weighted.df)
 compiled.results.df$sppnumber <- rep(x = sppnumbers, times = 4)
@@ -1156,3 +1165,164 @@ points(counts.merged.centers$longitude, counts.merged.centers$latitude, cex = 0.
 plot(bcrshp[bcrshp$WATER == 3,], ylim = lats2, xlim = longs2, border = "black", add = TRUE)
 points(counts.merged.centers$x, counts.merged.centers$y, cex = 0.5, pch = 16, col = "red")
 legend(-174,40, legend = c("Routes","Geographic centers"), pch = 16, col = c("gray40", "red"), bty= "n")
+
+
+#####Comparison figures expanded spp list#########
+newspp <- compiled.results.df %>%
+  group_by(analysis) %>%
+  filter(shiftdir != "") %>%
+  select(aou)
+
+newdir <- c()
+for(aou in newspp$aou) {
+  if(aou %in% huang_species$aou) {
+    newdir <- c(newdir, "both")
+  } else {
+    newdir <- c(newdir, "NEW")
+  }
+}
+newspp$newdir <- newdir
+
+newspplist <- newspp %>%
+  filter(newdir == "NEW")
+#for each method there are > 10 species that were found to have significant directional shifts by regression method
+
+#compare shift distance 
+par(bg = "white")
+par(new = T)
+plot.new()
+par(oma = c(0,0,4,0))
+split.screen(c(3,3))
+par(mar = c(5.1,4.1,4.1,2.1))
+
+screen(1)
+par(mar = c(3.1,4.1,3.1,2.1))
+plot(compiled.results.df$shiftdist[compiled.results.df$analysis == "By route"], compiled.results.df$shiftdist[compiled.results.df$analysis == "By grid"], xlab = "", ylab = "By grid", type="n", ylim = c(0,3600), xlim = c(0,3600))
+text(compiled.results.df$shiftdist[compiled.results.df$analysis == "By route"], compiled.results.df$shiftdist[compiled.results.df$analysis == "By grid"], label = compiled.results.df$sppnumber[1:56])
+abline(0,1,col = "black")
+lm <- lm(compiled.results.df$shiftdist[compiled.results.df$analysis == "By grid"] ~ compiled.results.df$shiftdist[compiled.results.df$analysis == "By route"])
+abline(lm, col = "blue")
+legend("topleft", bty = "n", legend = paste("R2 =", format(summary(lm)$r.squared, digits = 3)))
+
+#by route, by strata
+screen(4)
+par(mar = c(3.1,4.1,2.1,2.1))
+plot(compiled.results.df$shiftdist[compiled.results.df$analysis == "By route"], compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata"], xlab = "", ylab = "By strata", type="n", ylim = c(0,3600), xlim = c(0,3600))
+text(compiled.results.df$shiftdist[compiled.results.df$analysis == "By route"], compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata"], label = compiled.results.df$sppnumber[1:56])
+abline(0,1,col = "black")
+lm <- lm(compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata"] ~ compiled.results.df$shiftdist[compiled.results.df$analysis == "By route"])
+abline(lm, col = "blue")
+legend("topleft", bty = "n", legend = paste("R2 =", format(summary(lm)$r.squared, digits = 3)))
+
+#by grid, by strata
+screen(5)
+par(mar = c(3.1,4.1,2.1,2.1))
+plot(compiled.results.df$shiftdist[compiled.results.df$analysis == "By grid"], compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata"], xlab = "", ylab = "", type="n", ylim = c(0,3600), xlim = c(0,3600))
+text(compiled.results.df$shiftdist[compiled.results.df$analysis == "By grid"], compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata"], label = compiled.results.df$sppnumber[1:56])
+abline(0,1,col = "black")
+lm <- lm(compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata"] ~ compiled.results.df$shiftdist[compiled.results.df$analysis == "By grid"])
+abline(lm, col = "blue")
+legend("topleft", bty = "n", legend = paste("R2 =", format(summary(lm)$r.squared, digits = 3)))
+
+#by route, huang et al.
+screen(7)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.results.df$shiftdist[compiled.results.df$analysis == "By route"], compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata with weighted abund."], xlab = "By route", ylab = "By strata with weighted abund.", type="n", ylim = c(0,3600), xlim = c(0,3600))
+text(compiled.results.df$shiftdist[compiled.results.df$analysis == "By route"], compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata with weighted abund."], label = compiled.results.df$sppnumber[1:56])
+abline(0,1,col = "black")
+lm <- lm(compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata with weighted abund."] ~ compiled.results.df$shiftdist[compiled.results.df$analysis == "By route"])
+abline(lm, col = "blue")
+legend("topleft", bty = "n", legend = paste("R2 =", format(summary(lm)$r.squared, digits = 3)))
+
+#by grid, huang et al.
+screen(8)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.results.df$shiftdist[compiled.results.df$analysis == "By grid"], compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata with weighted abund."], xlab = "By grid", ylab = "", type="n", ylim = c(0,3600), xlim = c(0,3600))
+text(compiled.results.df$shiftdist[compiled.results.df$analysis == "By grid"], compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata with weighted abund."], label = compiled.results.df$sppnumber[1:56])
+abline(0,1,col = "black")
+lm <- lm(compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata with weighted abund."] ~ compiled.results.df$shiftdist[compiled.results.df$analysis == "By grid"])
+abline(lm, col = "blue")
+legend("topleft", bty = "n", legend = paste("R2 =", format(summary(lm)$r.squared, digits = 3)))
+
+#by strata, huang et al.
+screen(9)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata"], compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata with weighted abund."], xlab = "By strata", ylab = "", type="n", ylim = c(0,3600), xlim = c(0,3600))
+text(compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata"], compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata with weighted abund."], label = compiled.results.df$sppnumber[1:56])
+abline(0,1,col = "black")
+lm <- lm(compiled.results.df$shiftdist[compiled.results.df$analysis == "By strata with weighted abund."] ~ compiled.results.df$shiftdist[compiled.results.df$analysis == "By route"])
+abline(lm, col = "blue")
+legend("topleft", bty = "n", legend = paste("R2 =", format(summary(lm)$r.squared, digits = 3)))
+
+close.screen(all = T)
+title(main = "Shift distance (km)", outer = T)
+
+#shiftdirection
+par(bg = "white")
+par(new = T)
+plot.new()
+par(oma = c(0,0,4,0))
+split.screen(c(3,3))
+par(mar = c(5.1,4.1,4.1,2.1))
+
+screen(1)
+par(mar = c(3.1,4.1,3.1,2.1))
+plot(compiled.results.df$bearing[compiled.results.df$analysis == "By route"], compiled.results.df$bearing[compiled.results.df$analysis == "By grid"], xlab = "", ylab = "By grid", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.results.df$bearing[compiled.results.df$analysis == "By route"], compiled.results.df$bearing[compiled.results.df$analysis == "By grid"], label = compiled.results.df$sppnumber[1:56])
+abline(0,1,col = "black")
+lm <- lm(compiled.results.df$bearing[compiled.results.df$analysis == "By grid"] ~ compiled.results.df$bearing[compiled.results.df$analysis == "By route"])
+abline(lm, col = "blue")
+legend("topleft", bty = "n", legend = paste("R2 =", format(summary(lm)$r.squared, digits = 3)))
+
+#by route, by strata
+screen(4)
+par(mar = c(3.1,4.1,2.1,2.1))
+plot(compiled.results.df$bearing[compiled.results.df$analysis == "By route"], compiled.results.df$bearing[compiled.results.df$analysis == "By strata"], xlab = "", ylab = "By strata", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.results.df$bearing[compiled.results.df$analysis == "By route"], compiled.results.df$bearing[compiled.results.df$analysis == "By strata"], label = compiled.results.df$sppnumber[1:56])
+abline(0,1,col = "black")
+lm <- lm(compiled.results.df$bearing[compiled.results.df$analysis == "By strata"] ~ compiled.results.df$bearing[compiled.results.df$analysis == "By route"])
+abline(lm, col = "blue")
+legend("topleft", bty = "n", legend = paste("R2 =", format(summary(lm)$r.squared, digits = 3)))
+
+#by grid, by strata
+screen(5)
+par(mar = c(3.1,4.1,2.1,2.1))
+plot(compiled.results.df$bearing[compiled.results.df$analysis == "By grid"], compiled.results.df$bearing[compiled.results.df$analysis == "By strata"], xlab = "", ylab = "", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.results.df$bearing[compiled.results.df$analysis == "By grid"], compiled.results.df$bearing[compiled.results.df$analysis == "By strata"], label = compiled.results.df$sppnumber[1:56])
+abline(0,1,col = "black")
+lm <- lm(compiled.results.df$bearing[compiled.results.df$analysis == "By strata"] ~ compiled.results.df$bearing[compiled.results.df$analysis == "By grid"])
+abline(lm, col = "blue")
+legend("topleft", bty = "n", legend = paste("R2 =", format(summary(lm)$r.squared, digits = 3)))
+
+#by route, huang et al.
+screen(7)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.results.df$bearing[compiled.results.df$analysis == "By route"], compiled.results.df$bearing[compiled.results.df$analysis == "By strata with weighted abund."], xlab = "By route", ylab = "By strata with weighted abund.", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.results.df$bearing[compiled.results.df$analysis == "By route"], compiled.results.df$bearing[compiled.results.df$analysis == "By strata with weighted abund."], label = compiled.results.df$sppnumber[1:56])
+abline(0,1,col = "black")
+lm <- lm(compiled.results.df$bearing[compiled.results.df$analysis == "By strata with weighted abund."] ~ compiled.results.df$bearing[compiled.results.df$analysis == "By route"])
+abline(lm, col = "blue")
+legend("topleft", bty = "n", legend = paste("R2 =", format(summary(lm)$r.squared, digits = 3)))
+
+#by grid, huang et al.
+screen(8)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.results.df$bearing[compiled.results.df$analysis == "By grid"], compiled.results.df$bearing[compiled.results.df$analysis == "By strata with weighted abund."], xlab = "By grid", ylab = "", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.results.df$bearing[compiled.results.df$analysis == "By grid"], compiled.results.df$bearing[compiled.results.df$analysis == "By strata with weighted abund."], label = compiled.results.df$sppnumber[1:56])
+abline(0,1,col = "black")
+lm <- lm(compiled.results.df$bearing[compiled.results.df$analysis == "By strata with weighted abund."] ~ compiled.results.df$bearing[compiled.results.df$analysis == "By grid"])
+abline(lm, col = "blue")
+legend("topleft", bty = "n", legend = paste("R2 =", format(summary(lm)$r.squared, digits = 3)))
+
+#by strata, huang et al.
+screen(9)
+par(mar = c(5.1,4.1,2.1,2.1))
+plot(compiled.results.df$bearing[compiled.results.df$analysis == "By strata"], compiled.results.df$bearing[compiled.results.df$analysis == "By strata with weighted abund."], xlab = "By strata", ylab = "", type="n", ylim = c(-180,180), xlim = c(-180,180))
+text(compiled.results.df$bearing[compiled.results.df$analysis == "By strata"], compiled.results.df$bearing[compiled.results.df$analysis == "By strata with weighted abund."], label = compiled.results.df$sppnumber[1:56])
+abline(0,1,col = "black")
+lm <- lm(compiled.results.df$bearing[compiled.results.df$analysis == "By strata with weighted abund."] ~ compiled.results.df$bearing[compiled.results.df$analysis == "By route"])
+abline(lm, col = "blue")
+legend("topleft", bty = "n", legend = paste("R2 =", format(summary(lm)$r.squared, digits = 3)))
+
+close.screen(all = T)
+title(main = "Shift direction (bearing)", outer = T)
