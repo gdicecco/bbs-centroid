@@ -97,12 +97,6 @@ centroids <- route_spp_means %>%
 #setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/centroids-by-routes/")
 #write.csv(centroids, "centroids-by-routes.csv", row.names=F)
 
-centroids.complete.timewind <- centroids %>%
-  group_by(aou) %>%
-  select(time.window) %>%
-  summarize(total = n()) %>%
-  filter(total == 10)
-
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
 #map(database = "state", add = TRUE)
@@ -190,8 +184,8 @@ for(i in 1:56){
   } else popchange <- c(popchange, "decreasing")
 }
 results.df <- cbind(results.df, popchange)
-setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
-write.csv(results.df, "centroids-by-routes-results.csv", row.names=F)
+#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
+#write.csv(results.df, "centroids-by-routes-results.csv", row.names=F)
 final.df <- data.frame(species = huang_all_species$English_Common_Name, 
                              aou= huang_all_species$aou, 
                              shiftdistance = results.df$shiftdist, 
@@ -199,7 +193,7 @@ final.df <- data.frame(species = huang_all_species$English_Common_Name,
                              direction = results.df$shiftdir, 
                              abundance = results.df$popchange,
                        distanceratio = results.df$distance_ratio)
-write.csv(final.df, "results-routes-summarized.csv", row.names=F)
+#write.csv(final.df, "results-routes-summarized.csv", row.names=F)
 
 ####### Centroids by 1 degree grids ######
 #Group routes by 5 year windows and spatial windows, check for routes in every time/spatial window
@@ -340,8 +334,8 @@ for(i in 1:56){
   } else popchange <- c(popchange, "decreasing")
 }
 results.grids.df <- cbind(results.grids.df, popchange)
-setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
-write.csv(results.grids.df, "centroids-by-grids-results.csv", row.names=F)
+#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
+#write.csv(results.grids.df, "centroids-by-grids-results.csv", row.names=F)
 final.grids.df <- data.frame(species = huang_all_species$English_Common_Name, 
                            aou= huang_all_species$aou, 
                            shiftdistance = results.grids.df$shiftdist, 
@@ -349,7 +343,7 @@ final.grids.df <- data.frame(species = huang_all_species$English_Common_Name,
                            direction = results.grids.df$shiftdir, 
                            abundance = results.grids.df$popchange,
                            distanceratio = results.grids.df$distance_ratio)
-write.csv(final.grids.df, "results-grids-summarized.csv", row.names=F)
+#write.csv(final.grids.df, "results-grids-summarized.csv", row.names=F)
 
 
 ####### Centroids by strata ########
@@ -399,8 +393,8 @@ centroids.bcr2 <- centroids.bcr %>%
   group_by(aou, time.window) %>%
   summarize(centroid_lat = sum(centroid_lat*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE), centroid_lon = sum(centroid_lon*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE),
             mean_total_abund = mean(mean_total_abund))
-setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
-write.csv(centroids.bcr2, "centroids-by-strata.csv", row.names=F)
+#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
+#write.csv(centroids.bcr2, "centroids-by-strata.csv", row.names=F)
 
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
@@ -492,8 +486,8 @@ for(i in 1:56){
 }
 results.bcr.df <- cbind(results.bcr.df, popchange)
 
-setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
-write.csv(results.bcr.df, "centroids-by-strata-results.csv", row.names=F)
+#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
+#write.csv(results.bcr.df, "centroids-by-strata-results.csv", row.names=F)
 
 final.bcr.df <- data.frame(species = huang_all_species$English_Common_Name, 
                        aou= huang_all_species$aou, 
@@ -502,9 +496,9 @@ final.bcr.df <- data.frame(species = huang_all_species$English_Common_Name,
                        direction = results.bcr.df$shiftdir, 
                        abundance = results.bcr.df$popchange,
                        distanceratio = results.bcr.df$distance_ratio)
-write.csv(final.bcr.df, "results-strata-summarized.csv", row.names=F)
+#write.csv(final.bcr.df, "results-strata-summarized.csv", row.names=F)
 
-########## Centroids by strata & weighted abundances #########
+####### Centroids by strata & weighted abundances #########
 
 #A - ratio of stratum area over the area of all strata where species is present
 #z - proportion of routes in specific strata on which spp was spotted
@@ -567,7 +561,7 @@ centroids.weighted <- abundance.indices[-1,] %>%
   summarize(centroid_lat = sum(y*abund.index, na.rm = TRUE)/sum(abund.index, na.rm = TRUE), 
             centroid_lon = sum(x*abund.index, na.rm = TRUE)/sum(abund.index, na.rm = TRUE),
             mean_total_ai = mean(abund.index, na.rm = TRUE))
-write.csv(centroids.weighted, "centroids-weighted-abund.csv", row.names = F)
+#write.csv(centroids.weighted, "centroids-weighted-abund.csv", row.names = F)
 
 plot(bcrshp[bcrshp$WATER == 3,], ylim = c(26,60), xlim = c(-140,-60), border = "gray73", col = "gray95") #plot centroids on BCR map
 mtext("Centroids by strata with weighted abundance index",3,cex=2,line=.5)
@@ -657,7 +651,7 @@ for(i in 1:56){
 results.weighted.df <- cbind(results.weighted.df, popchange)
 
 #setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata-weighted-abund/")
-write.csv(results.weighted.df, "centroids-weighted-results.csv", row.names=F)
+#write.csv(results.weighted.df, "centroids-weighted-results.csv", row.names=F)
 
 final.weighted.df <- data.frame(species = huang_all_species$English_Common_Name, 
                            aou= huang_all_species$aou, 
@@ -666,7 +660,7 @@ final.weighted.df <- data.frame(species = huang_all_species$English_Common_Name,
                            direction = results.weighted.df$shiftdir, 
                            abundance = results.weighted.df$popchange,
                            distanceratio = results.weighted.df$distance_ratio)
-write.csv(final.bcr.df, "results-strata-weighted-summarized.csv", row.names=F)
+#write.csv(final.bcr.df, "results-strata-weighted-summarized.csv", row.names=F)
 
 
 ####### Comparison figures #######
@@ -1167,7 +1161,7 @@ points(counts.merged.centers$x, counts.merged.centers$y, cex = 0.5, pch = 16, co
 legend(-174,40, legend = c("Routes","Geographic centers"), pch = 16, col = c("gray40", "red"), bty= "n")
 
 
-#####Comparison figures expanded spp list#########
+####### Comparison figures expanded spp list#########
 newspp <- compiled.results.df %>%
   group_by(analysis) %>%
   filter(shiftdir != "") %>%
@@ -1326,3 +1320,62 @@ legend("topleft", bty = "n", legend = paste("R2 =", format(summary(lm)$r.squared
 
 close.screen(all = T)
 title(main = "Shift direction (bearing)", outer = T)
+
+####### Determine bias in using geographic centers of strata in centroid calculations ######
+#geographic centers of strata in df polys.merged.land
+#two ways of figuring out bias - find species neutral centers using routes, find weighted centers using abundances
+
+#determine centers of strata using route coordinates
+route.centroids <- routes.short.centers %>%
+  group_by(statebcr) %>%
+  summarize(centroid_lat = mean(latitude), centroid_lon = mean(longitude))
+
+#all routes in strata with strata centers and route centers
+longs2 = c(-175,-60)
+lats2 = c(24,69)
+
+plot(bcrshp[bcrshp$WATER == 3,], ylim = lats2, xlim = longs2, border = "white", col = "white") #plot centroids on BCR map
+points(counts.merged.centers$longitude, counts.merged.centers$latitude, cex = 0.1, pch = 16, col = "gray40")
+plot(bcrshp[bcrshp$WATER == 3,], ylim = lats2, xlim = longs2, border = "black", add = TRUE)
+points(counts.merged.centers$x, counts.merged.centers$y, cex = 0.5, pch = 16, col = "red")
+legend(-174,40, legend = c("Routes","Geographic centers", "Route centers"), pch = c(16, 16, 17), col = c("gray40", "red", "blue"), bty= "n")
+points(route.centroids$centroid_lon, route.centroids$centroid_lat, cex = 0.5, pch = 17, col = "blue", add = TRUE)
+
+#plot magnitude of difference between geographic center and route center
+geographic.centroids <- routes.short.centers %>%
+  group_by(statebcr) %>%
+  select(x, y) %>%
+  distinct()
+routes.geographic.centroids <- merge(geographic.centroids, route.centroids)
+
+centroid.bias <- routes.geographic.centroids %>%
+  group_by(statebcr) %>%
+  summarize(centroid_diff = distGeo(c(mean(x), mean(y)), c(mean(centroid_lon), mean(centroid_lat)))/1000)
+
+ggplot(centroid.bias, aes(x = statebcr, y = centroid_diff)) + geom_point() + theme_bw() + geom_abline(intercept = 150, slope = 0)
+
+ggplot(centroid.bias, aes(x = centroid_diff)) + geom_histogram(binwidth = 10, col = I("white")) +
+  labs(y = "Count", x = "Difference between route and geographic centroids (km)") + 
+  geom_vline(xintercept = mean(centroid.bias$centroid_diff), color = "red") +
+  geom_vline(xintercept = median(centroid.bias$centroid_diff), color = "blue") + blank
+
+biased.centroids <- centroid.bias %>%
+  filter(centroid_diff > mean(centroid_diff))
+
+#plot where strata with most biased centroid estimates are (in red)
+plot(bcrshp[bcrshp$WATER == 3,], ylim = lats2, xlim = longs2, border = "white", col = "white") #plot centroids on BCR map
+points(counts.merged.centers$longitude, counts.merged.centers$latitude, cex = 0.1, pch = 16, col = "gray40")
+plot(bcrshp[bcrshp$WATER == 3,], ylim = lats2, xlim = longs2, border = "black", add = TRUE)
+points(counts.merged.centers$x, counts.merged.centers$y, cex = 0.5, pch = 16, col = "black")
+points(counts.merged.centers$x[counts.merged.centers$statebcr %in% biased.centroids$statebcr],
+       counts.merged.centers$y[counts.merged.centers$statebcr %in% biased.centroids$statebcr], cex = 0.5, pch = 16, col = "red")
+
+#which species of interest have count obs in biased strata
+species.biased <- counts.merged.centers %>%
+  group_by(aou) %>%
+  filter(statebcr %in% biased.centroids$statebcr) %>%
+  select(aou) %>%
+  distinct() #41 species out of 57 observations in biased strata
+#species in shortlist from publication
+species.biased$aou[species.biased$aou %in% huang_species$aou] #28/35 species have observations in biased strata
+
