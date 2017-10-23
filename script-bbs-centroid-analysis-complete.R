@@ -556,7 +556,7 @@ for(i in 1:length(huang_all_species$aou)) {
 }
 
 #mean centroid weighted from strata specific abund indices
-centroids.weighted <- abundance.indices[-1,] %>%
+centroids.weighted <- abundance.indices %>%
   group_by(aou, time.window) %>%
   summarize(centroid_lat = sum(y*abund.index, na.rm = TRUE)/sum(abund.index, na.rm = TRUE), 
             centroid_lon = sum(x*abund.index, na.rm = TRUE)/sum(abund.index, na.rm = TRUE),
@@ -567,9 +567,9 @@ plot(bcrshp[bcrshp$WATER == 3,], ylim = c(26,60), xlim = c(-140,-60), border = "
 mtext("Centroids by strata with weighted abundance index",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results.weighted <- matrix(nrow = 56, ncol = 12)
-for(i in 1:56) {
-  species <- huang_all_species$aou[i]
+results.weighted <- matrix(nrow = 35, ncol = 12)
+for(i in 1:35) {
+  species <- huang_species$aou[i]
   results.weighted[i,1] <- species
   df <- centroids.weighted %>%
     filter(aou == species)
@@ -615,7 +615,7 @@ results.weighted.df <- data.frame(aou = results.weighted[,1],
 
 #assign shift directions
 direction.lat <- c()
-for(i in 1:56){
+for(i in 1:35){
   slope <- results.weighted.df$lat_slope[i]
   pval <- results.weighted.df$lat_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -628,7 +628,7 @@ for(i in 1:56){
 results.weighted.df <- cbind(results.weighted.df, direction.lat)
 
 direction.lon <- c()
-for(i in 1:56){
+for(i in 1:35){
   slope <- results.weighted.df$lon_slope[i]
   pval <- results.weighted.df$lon_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -642,7 +642,7 @@ results.weighted.df <- cbind(results.weighted.df,direction.lon)
 results.weighted.df$shiftdir <- paste(results.weighted.df$direction.lat,results.weighted.df$direction.lon, sep = "")
 
 popchange <- c()
-for(i in 1:56){
+for(i in 1:35){
   r <- results.weighted.df$r[i]
   if (r > 0) {
     popchange <- c(popchange, "increasing")
@@ -653,14 +653,14 @@ results.weighted.df <- cbind(results.weighted.df, popchange)
 #setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata-weighted-abund/")
 #write.csv(results.weighted.df, "centroids-weighted-results.csv", row.names=F)
 
-final.weighted.df <- data.frame(species = huang_all_species$English_Common_Name, 
-                           aou= huang_all_species$aou, 
+final.weighted.df <- data.frame(species = huang_species$species, 
+                           aou= huang_species$aou, 
                            shiftdistance = results.weighted.df$shiftdist, 
                            velocity = results.weighted.df$velocity, 
                            direction = results.weighted.df$shiftdir, 
                            abundance = results.weighted.df$popchange,
                            distanceratio = results.weighted.df$distance_ratio)
-#write.csv(final.bcr.df, "results-strata-weighted-summarized.csv", row.names=F)
+write.csv(final.weighted.df, "results-strata-weighted-summarized.csv", row.names=F)
 
 
 ####### Comparison figures #######
@@ -676,11 +676,10 @@ final.weighted.df$analysis <- rep(x = "By strata with weighted abund.", times = 
 huang_species$distanceratio <- rep(NA)
 huang_species$analysis <- rep(x = "Huang et al.", times = 35)
 
-sppnumbers <- c(1:15, 17:35)
+sppnumbers <- c(1:15, 17:36)
 
 compiled.df <- rbind(final.df, final.grids.df, final.bcr.df, final.weighted.df, huang_species)
 compiled.df$sppnumber <- rep(x = sppnumbers, times = 5)
-compiled.df$aou <- as.factor(compiled.df$aou)
  
 blank <- theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
@@ -1378,4 +1377,32 @@ species.biased <- counts.merged.centers %>%
   distinct() #41 species out of 57 observations in biased strata
 #species in shortlist from publication
 species.biased$aou[species.biased$aou %in% huang_species$aou] #28/35 species have observations in biased strata
+
+#make table of centroid bias: for each spp, bcrs, mean abund in BCR, centroid diff. 
+counts.merged.diffs <- merge(counts.merged.centers, centroid.bias, by = "statebcr")
+spp.bias.table <- counts.merged.diffs %>% 
+  group_by(aou, statebcr) %>%
+  summarize(meanabund = mean(speciestotal), centroid_diff = mean(centroid_diff))
+
+weighted.bias <- spp.bias.table %>%
+  group_by(aou) %>%
+  summarize(weightedbias = mean(meanabund*centroid_diff))
+weighted.bias$species <- huang_all_species$English_Common_Name
+subs.weighted.bias <- weighted.bias[weighted.bias$aou %in% huang_species$aou,]
+subs.weighted.bias$sppid <- sppnumbers
+
+#plot magnitude of weighted.bias vs. distance from 1:1 line for shift distance (comparison plots)
+huangshiftdist <- compiled.df %>%
+  filter(analysis == "Huang et al.")
+shiftdist.diff <- compiled.df %>%
+  group_by(analysis, aou) %>%
+  summarize(dist_diff = shiftdistance - huangshiftdist$shiftdistance[huangshiftdist$aou == aou])
+shiftdist.diff <- shiftdist.diff[1:140,] #remove huang et al. 0 rows
+
+shiftdist.diff$weightedbias <- rep(subs.weighted.bias$weightedbias, times = 4)
+shiftdist.diff$id <- rep(subs.weighted.bias$sppid, times = 4)
+
+sp <- ggplot(shiftdist.diff, aes(color = analysis)) + geom_text(aes(x = weightedbias, y = dist_diff, label = id)) + 
+  blank + geom_hline(yintercept = 0, lty = 2)
+sp + scale_color_brewer(palette = "Set1") + labs(x = "Weighted Centroid Bias", y = "Difference in Shift Distance from Huang et al.") + theme(legend.title=element_blank())
 
