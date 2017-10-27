@@ -742,13 +742,13 @@ title(main = "Shift distance (km)", outer = T)
 
 
 #compare shift direction
-results.df$analysis <- rep(x = "By route", times = 56)
+results.df$analysis <- rep(x = "By route", times = 35)
 #centroids by grid
-results.grids.df$analysis <- rep(x = "By grid", times = 56)
+results.grids.df$analysis <- rep(x = "By grid", times = 35)
 #centroids by bcr
-results.bcr.df$analysis <- rep(x = "By strata", times = 56)
+results.bcr.df$analysis <- rep(x = "By strata", times = 35)
 #centroids weighted abund
-results.weighted.df$analysis <- rep(x = "By strata with weighted abund.", times = 56)
+results.weighted.df$analysis <- rep(x = "By strata with weighted abund.", times = 35)
 
 compiled.results.df <- rbind(results.df, results.grids.df, results.bcr.df, results.weighted.df)
 compiled.results.df$sppnumber <- rep(x = sppnumbers, times = 4)
@@ -972,7 +972,7 @@ for(x in compiled.df$direction[compiled.df$analysis == "By strata with weighted 
   }
 }
 
-bearinground <- c(bearingroutes, bearinggrids, bearingstrata, bearinghuang, bearingweight)
+bearinground <- c(bearingroutes, bearinggrids, bearingstrata, bearingweight, bearinghuang)
 compiled.df$directionround <- bearinground
 
 #plot bearinground
@@ -1135,6 +1135,15 @@ abline(lm(compiled.df$directionround[compiled.df$analysis == "Huang et al."] ~ c
 close.screen(all = T)
 title(main = "Shift Direction", outer = T)
 
+#Polar plot
+compiled.df$direction <- factor(compiled.df$direction, levels = c("north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"))
+
+plot <- ggplot(na.omit(compiled.df[,-7]), aes(x = direction, fill = analysis))+stat_count()+theme_bw()+labs(x = "Direction of centroid shift", y = "Number of Species") +
+  facet_wrap(~analysis, ncol = 3)+theme(axis.text.x = element_text(face = "bold", size = 7.5), legend.position = "none") + scale_fill_brewer(palette = "Set1")
+
+plot + coord_polar(start = -pi/8, direction = 1)
+
+ggplot(compiled.df, aes(x = aou, y = shiftdistance, color = analysis)) + theme_bw() + geom_point() + scale_color_brewer(palette = "Set1") + labs(x = "AOU", y = "Shift Distance", color = "Analysis")
 
 ###Make maps for lab meeting showing methods
 longs2 = c(-175,-60)
@@ -1382,14 +1391,15 @@ species.biased$aou[species.biased$aou %in% huang_species$aou] #28/35 species hav
 counts.merged.diffs <- merge(counts.merged.centers, centroid.bias, by = "statebcr")
 spp.bias.table <- counts.merged.diffs %>% 
   group_by(aou, statebcr) %>%
-  summarize(meanabund = mean(speciestotal), centroid_diff = mean(centroid_diff))
+  summarize(meanabund = mean(speciestotal), centroid_diff = mean(centroid_diff)) %>%
+  left_join(polys.merged.land[,c(10,13)])
 
 weighted.bias <- spp.bias.table %>%
   group_by(aou) %>%
-  summarize(weightedbias = mean(meanabund*centroid_diff))
+  summarize(weightedbias = sum(meanabund*Shape_Area*centroid_diff)/sum(meanabund*Shape_Area))
 weighted.bias$species <- huang_all_species$English_Common_Name
 subs.weighted.bias <- weighted.bias[weighted.bias$aou %in% huang_species$aou,]
-subs.weighted.bias$sppid <- sppnumbers
+subs.weighted.bias$sppid <- c(1:15, 17:36)
 
 #plot magnitude of weighted.bias vs. distance from 1:1 line for shift distance (comparison plots)
 huangshiftdist <- compiled.df %>%
@@ -1402,7 +1412,35 @@ shiftdist.diff <- shiftdist.diff[1:140,] #remove huang et al. 0 rows
 shiftdist.diff$weightedbias <- rep(subs.weighted.bias$weightedbias, times = 4)
 shiftdist.diff$id <- rep(subs.weighted.bias$sppid, times = 4)
 
+blank <- theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+                            panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+
 sp <- ggplot(shiftdist.diff, aes(color = analysis)) + geom_text(aes(x = weightedbias, y = dist_diff, label = id)) + 
   blank + geom_hline(yintercept = 0, lty = 2)
 sp + scale_color_brewer(palette = "Set1") + labs(x = "Weighted Centroid Bias", y = "Difference in Shift Distance from Huang et al.") + theme(legend.title=element_blank())
 
+huangshiftdir <- compiled.df %>%
+  filter(analysis == "Huang et al.")
+shiftdir.diff <- compiled.df %>%
+  group_by(analysis, aou) %>%
+  summarize(d = directionround - huangshiftdir$directionround[huangshiftdir$aou == aou])
+shiftdir.diff <- shiftdir.diff[1:140,] #remove huang et al. 0 rows
+
+shiftdir.diff$weightedbias <- rep(subs.weighted.bias$weightedbias, times = 4)
+shiftdir.diff$id <- rep(subs.weighted.bias$sppid, times = 4)
+
+sp <- ggplot(shiftdir.diff, aes(color = analysis)) + geom_text(aes(x = weightedbias, y = d, label = id)) + 
+  blank + geom_hline(yintercept = 0, lty = 2)
+sp + scale_color_brewer(palette = "Set1") + labs(x = "Weighted Centroid Bias", y = "Difference in Shift Direction from Huang et al.") + theme(legend.title=element_blank())
+
+#Redo this with rounded bearing
+bearing.diff <- compiled.results.df %>%
+  group_by(analysis, aou) %>%
+  summarize(d = roundbearing - huangshiftdir$directionround[huangshiftdir$aou == aou])
+
+bearing.diff$weightedbias <- rep(subs.weighted.bias$weightedbias, times = 4)
+bearing.diff$id <- rep(subs.weighted.bias$sppid, times = 4)
+
+sp <- ggplot(bearing.diff, aes(color = analysis)) + geom_text(aes(x = weightedbias, y = d, label = id)) + 
+  blank + geom_hline(yintercept = 0, lty = 2)
+sp + scale_color_brewer(palette = "Set1") + labs(x = "Weighted Centroid Bias", y = "Difference in Shift Direction from Huang et al.") + theme(legend.title=element_blank())
