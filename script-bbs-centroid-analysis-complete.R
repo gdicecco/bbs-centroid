@@ -104,9 +104,9 @@ plot(bcrshp[bcrshp$WATER == 3,], xlim = longs, ylim = lats, border = "gray73", c
 mtext("Centroids by route",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results <- matrix(nrow = 56, ncol = 12)
-for(i in 1:56) {
-  species <- huang_all_species$aou[i]
+results <- matrix(nrow = 35, ncol = 12)
+for(i in 1:35) {
+  species <- huang_species$aou[i]
   results[i,1] <- species
   df <- centroids %>%
     filter(aou == species)
@@ -150,7 +150,7 @@ results.df <- data.frame(aou = results[,1],
 
 #assign shift directions
 direction.lat <- c()
-for(i in 1:56){
+for(i in 1:35){
   slope <- results.df$lat_slope[i]
   pval <- results.df$lat_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -163,7 +163,7 @@ for(i in 1:56){
 results.df <- cbind(results.df, direction.lat)
 
 direction.lon <- c()
-for(i in 1:56){
+for(i in 1:35){
   slope <- results.df$lon_slope[i]
   pval <- results.df$lon_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -177,7 +177,7 @@ results.df <- cbind(results.df,direction.lon)
 results.df$shiftdir <- paste(results.df$direction.lat,results.df$direction.lon, sep = "")
 
 popchange <- c()
-for(i in 1:56){
+for(i in 1:35){
   r <- results.df$r[i]
   if (r > 0) {
     popchange <- c(popchange, "increasing")
@@ -186,8 +186,8 @@ for(i in 1:56){
 results.df <- cbind(results.df, popchange)
 #setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
 #write.csv(results.df, "centroids-by-routes-results.csv", row.names=F)
-final.df <- data.frame(species = huang_all_species$English_Common_Name, 
-                             aou= huang_all_species$aou, 
+final.df <- data.frame(species = huang_species$species, 
+                             aou= huang_species$aou, 
                              shiftdistance = results.df$shiftdist, 
                              velocity = results.df$velocity, 
                              direction = results.df$shiftdir, 
@@ -221,13 +221,19 @@ counts.subs <- counts %>%
   filter(stateroute %in% routes.subs$stateroute) %>%
   select(year, aou, speciestotal, stateroute)
 
+gridroutes <- routes.subs %>%
+  group_by(spatial.window, time.window) %>%
+  select(stateroute) %>%
+  summarize(total.routes = n())
+
 counts.merged <- merge(routes.subs, counts.subs, by = c("stateroute", "year"))
+counts.merged <- merge(counts.merged, gridroutes, by = c("spatial.window", "time.window"))
 
 #mean species abundance for each route over time.windows
 spp_abund_means <- counts.merged %>%
   group_by(stateroute, lat.window, lon.window, aou, time.window) %>%
-  summarize(avg_abund = mean(speciestotal, na.rm = TRUE))
-
+  summarize(avg_abund = sum(speciestotal, na.rm = TRUE)/mean(total.routes))
+    
 spp_abund_means$ceiling.lat <- ceiling(spp_abund_means$lat.window)
 spp_abund_means$floor.lon <- floor(spp_abund_means$lon.window)
 
@@ -243,8 +249,8 @@ centroids.grids.2 <- centroids.grids %>% ##centroid over spatial windows
   summarize(centroid_lat = sum(centroid_lat*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE),
 centroid_lon = sum(centroid_lon*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE), 
 mean_total_abund = mean(mean_total_abund)) 
-#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
-#write.csv(centroids.grids.2, "centroids-by-grids.csv", row.names=F)
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-grids/")
+write.csv(centroids.grids.2, "centroids-by-grids.csv", row.names=F)
 
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
@@ -253,9 +259,9 @@ plot(bcrshp[bcrshp$WATER == 3,], ylim = lats, xlim = longs, border = "gray73", c
 mtext("Centroids by 1 deg grid",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results.grids <- matrix(nrow = 56, ncol = 12)
-for(i in 1:56) {
-  species <- huang_all_species$aou[i]
+results.grids <- matrix(nrow = 35, ncol = 12)
+for(i in 1:35) {
+  species <- huang_species$aou[i]
   results.grids[i,1] <- species
   df <- centroids.grids.2 %>%
     filter(aou == species)
@@ -300,7 +306,7 @@ results.grids.df <- data.frame(aou = results.grids[,1],
 
 #assign shift directions
 direction.lat <- c()
-for(i in 1:56){
+for(i in 1:35){
   slope <- results.grids.df$lat_slope[i]
   pval <- results.grids.df$lat_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -313,7 +319,7 @@ for(i in 1:56){
 results.grids.df <- cbind(results.grids.df, direction.lat)
 
 direction.lon <- c()
-for(i in 1:56){
+for(i in 1:35){
   slope <- results.grids.df$lon_slope[i]
   pval <- results.grids.df$lon_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -327,23 +333,23 @@ results.grids.df <- cbind(results.grids.df,direction.lon)
 results.grids.df$shiftdir <- paste(results.grids.df$direction.lat,results.grids.df$direction.lon, sep = "")
 
 popchange <- c()
-for(i in 1:56){
+for(i in 1:35){
   r <- results.grids.df$r[i]
   if (r > 0) {
     popchange <- c(popchange, "increasing")
   } else popchange <- c(popchange, "decreasing")
 }
 results.grids.df <- cbind(results.grids.df, popchange)
-#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
-#write.csv(results.grids.df, "centroids-by-grids-results.csv", row.names=F)
-final.grids.df <- data.frame(species = huang_all_species$English_Common_Name, 
-                           aou= huang_all_species$aou, 
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-grids/")
+write.csv(results.grids.df, "centroids-by-grids-results.csv", row.names=F)
+final.grids.df <- data.frame(species = huang_species$species, 
+                           aou= huang_species$aou, 
                            shiftdistance = results.grids.df$shiftdist, 
                            velocity = results.grids.df$velocity, 
                            direction = results.grids.df$shiftdir, 
                            abundance = results.grids.df$popchange,
                            distanceratio = results.grids.df$distance_ratio)
-#write.csv(final.grids.df, "results-grids-summarized.csv", row.names=F)
+write.csv(final.grids.df, "results-grids-summarized.csv", row.names=F)
 
 
 ####### Centroids by strata ########
@@ -376,12 +382,18 @@ subs.routes4 <- counts.merged.centers %>%
   summarize(total = n()) %>%
   filter(total > 4)
 
+bcrroutes <- routes.short.centers %>%
+  group_by(statebcr, time.window) %>%
+  select(stateroute) %>%
+  summarize(total.routes = n())
+
 counts.merged.subs.strata <- merge(counts.merged.centers, subs.routes4, by = c("aou","statebcr"))
+counts.merged.subs.strata <- merge(counts.merged.subs.strata, bcrroutes, by = c("statebcr", "time.window"))
 
 #mean centroid for each species in five year time windows per bcr/state strata
 spp_abund_means_bcr <- counts.merged.subs.strata %>%
   group_by(statebcr, x, y, stateroute, bcr, latitude, longitude, aou, time.window) %>%
-  summarize(avg_abund = mean(speciestotal, na.rm = TRUE))
+  summarize(avg_abund = sum(speciestotal, na.rm = TRUE)/mean(total.routes))
 
 centroids.bcr <- spp_abund_means_bcr %>%
   group_by(aou, time.window, statebcr) %>%
@@ -393,8 +405,8 @@ centroids.bcr2 <- centroids.bcr %>%
   group_by(aou, time.window) %>%
   summarize(centroid_lat = sum(centroid_lat*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE), centroid_lon = sum(centroid_lon*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE),
             mean_total_abund = mean(mean_total_abund))
-#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
-#write.csv(centroids.bcr2, "centroids-by-strata.csv", row.names=F)
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata/")
+write.csv(centroids.bcr2, "centroids-by-strata.csv", row.names=F)
 
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
@@ -403,9 +415,9 @@ plot(bcrshp[bcrshp$WATER == 3,], ylim = lats, xlim = longs, border = "gray73", c
 mtext("Centroids by strata",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results.bcr <- matrix(nrow = 56, ncol = 12)
-for(i in 1:56) {
-  species <- huang_all_species$aou[i]
+results.bcr <- matrix(nrow = 35, ncol = 12)
+for(i in 1:35) {
+  species <- huang_species$aou[i]
   results.bcr[i,1] <- species
   df <- centroids.bcr2 %>%
     filter(aou == species)
@@ -451,7 +463,7 @@ results.bcr.df <- data.frame(aou = results.bcr[,1],
 
 #assign shift directions
 direction.lat <- c()
-for(i in 1:56){
+for(i in 1:35){
   slope <- results.bcr.df$lat_slope[i]
   pval <- results.bcr.df$lat_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -464,7 +476,7 @@ for(i in 1:56){
 results.bcr.df <- cbind(results.bcr.df, direction.lat)
 
 direction.lon <- c()
-for(i in 1:56){
+for(i in 1:35){
   slope <- results.bcr.df$lon_slope[i]
   pval <- results.bcr.df$lon_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -478,7 +490,7 @@ results.bcr.df <- cbind(results.bcr.df,direction.lon)
 results.bcr.df$shiftdir <- paste(results.bcr.df$direction.lat,results.bcr.df$direction.lon, sep = "")
 
 popchange <- c()
-for(i in 1:56){
+for(i in 1:35){
   r <- results.bcr.df$r[i]
   if (r > 0) {
     popchange <- c(popchange, "increasing")
@@ -486,17 +498,17 @@ for(i in 1:56){
 }
 results.bcr.df <- cbind(results.bcr.df, popchange)
 
-#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/expanded-spp-list/")
-#write.csv(results.bcr.df, "centroids-by-strata-results.csv", row.names=F)
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata/")
+write.csv(results.bcr.df, "centroids-by-strata-results.csv", row.names=F)
 
-final.bcr.df <- data.frame(species = huang_all_species$English_Common_Name, 
-                       aou= huang_all_species$aou, 
+final.bcr.df <- data.frame(species = huang_species$species, 
+                       aou= huang_species$aou, 
                        shiftdistance = results.bcr.df$shiftdist, 
                        velocity = results.bcr.df$velocity, 
                        direction = results.bcr.df$shiftdir, 
                        abundance = results.bcr.df$popchange,
                        distanceratio = results.bcr.df$distance_ratio)
-#write.csv(final.bcr.df, "results-strata-summarized.csv", row.names=F)
+write.csv(final.bcr.df, "results-strata-summarized.csv", row.names=F)
 
 ####### Centroids by strata & weighted abundances #########
 
@@ -512,7 +524,7 @@ abund.index <- function(year, spid, strata) {
     filter(time.window == year) %>%
     filter(aou == spid) %>%
     filter(statebcr == strata)
-  total.area <- sum(polys.merged.land$Shape_Area)
+  total.area <- sum(polys.merged.land$Shape_Area[polys.merged.land$statebcr %in% spp_abund_means_bcr$statebcr[spp_abund_means_bcr$aou == spid]])
   a <- polys.merged.land$Shape_Area[polys.merged.land$statebcr == strata]/total.area
   z <- length(unique(ai$stateroute))/length(unique(routes.short.centers$stateroute[routes.short.centers$statebcr == strata]))
   
@@ -522,10 +534,10 @@ abund.index <- function(year, spid, strata) {
 
 abundance.indices <- data.frame(statebcr = 0, x = 0, y = 0, bcr = 0, aou = 0, time.window = 0, abund.index = 0)
 
-#Takes a really long time ~10 hours
+#Takes a really long time ~16 hours
 init.time = Sys.time()
-for(i in 1:length(huang_all_species$aou)) {
-  species <- huang_all_species$aou[i]
+for(i in 1:length(huang_species$aou)) {
+  species <- huang_species$aou[i]
   bcrs <- spp_abund_means_bcr %>%
     filter(aou == species) 
   bcr.list <- unique(bcrs$statebcr)
@@ -551,9 +563,12 @@ for(i in 1:length(huang_all_species$aou)) {
   elapsed = curr.time - init.time
   percelltime = elapsed/i
   estimated.end = (length(huang_all_species$aou) - i)*percelltime + curr.time
-  print(paste(i, "out of", length(huang_all_species$aou), "; current time:", curr.time,
+  print(paste(i, "out of", length(huang_species$aou), "; current time:", curr.time,
               "; estimated end time:", estimated.end))
 }
+abundance.indices <- abundance.indices[-1,]
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata-weighted-abund/")
+write.csv(abundance.indices, "weighted-abundance-indices-centroids.csv", row.names = F)
 
 #mean centroid weighted from strata specific abund indices
 centroids.weighted <- abundance.indices %>%
@@ -561,7 +576,7 @@ centroids.weighted <- abundance.indices %>%
   summarize(centroid_lat = sum(y*abund.index, na.rm = TRUE)/sum(abund.index, na.rm = TRUE), 
             centroid_lon = sum(x*abund.index, na.rm = TRUE)/sum(abund.index, na.rm = TRUE),
             mean_total_ai = mean(abund.index, na.rm = TRUE))
-#write.csv(centroids.weighted, "centroids-weighted-abund.csv", row.names = F)
+write.csv(centroids.weighted, "centroids-weighted-abund.csv", row.names = F)
 
 plot(bcrshp[bcrshp$WATER == 3,], ylim = c(26,60), xlim = c(-140,-60), border = "gray73", col = "gray95") #plot centroids on BCR map
 mtext("Centroids by strata with weighted abundance index",3,cex=2,line=.5)
@@ -650,8 +665,8 @@ for(i in 1:35){
 }
 results.weighted.df <- cbind(results.weighted.df, popchange)
 
-#setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata-weighted-abund/")
-#write.csv(results.weighted.df, "centroids-weighted-results.csv", row.names=F)
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata-weighted-abund/")
+write.csv(results.weighted.df, "centroids-weighted-results.csv", row.names=F)
 
 final.weighted.df <- data.frame(species = huang_species$species, 
                            aou= huang_species$aou, 
