@@ -20,6 +20,8 @@ counts.strata <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\DiCecco\\BBS-cen
 model.grids <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\DiCecco\\BBS-centroids\\bayesian-model-output\\model_parameters_grids.csv", stringsAsFactors = F)
 
 huang_species <- read.csv("\\\\Bioark.bio.unc.edu\\hurlbertlab\\DiCecco\\BBS-centroids\\huang-2017-bbs-species.csv", header = TRUE)
+huang_species <- huang_species %>%
+  filter(!aou == 7030, !aou == 7270)
 
 # make counts.grids
 routes$stateroute <- routes$statenum*1000 + routes$route
@@ -95,19 +97,19 @@ distance.ratio <- function(df, AOU, randomizations = FALSE, n = 1000) {
   
   x = filter(df, aou == AOU)
   
-  years = seq(1969, 2014, by = 5)
+  years = seq(1, 48)
   
   if (randomizations) {
     rand.ratios = c()
     for (r in 1:n) {
       sampleyears = sample(years, 10)
       distances <- c()
-      for(i in 1:9) {
+      for(i in 1:48) {
         distances <- c(distances, distGeo(x[x$time.window == sampleyears[i], c("centroid_lon", "centroid_lat")], 
                                           x[x$time.window == sampleyears[i+1], c("centroid_lon", "centroid_lat")]))
         sumdist <- sum(distances)
       }
-      fl <- distGeo(x[1,c("centroid_lon", "centroid_lat")], x[10,c("centroid_lon", "centroid_lat")])
+      fl <- distGeo(x[1,c("centroid_lon", "centroid_lat")], x[48,c("centroid_lon", "centroid_lat")])
       rand.ratios = c(rand.ratios, fl/sumdist)
     }
   } else {
@@ -116,12 +118,12 @@ distance.ratio <- function(df, AOU, randomizations = FALSE, n = 1000) {
   
   sampleyears = years
   distances <- c()
-  for(i in 1:9) {
+  for(i in 1:48) {
     distances <- c(distances, distGeo(x[x$time.window == sampleyears[i], c("centroid_lon", "centroid_lat")], 
                                       x[x$time.window == sampleyears[i+1], c("centroid_lon", "centroid_lat")]))
-    sumdist <- sum(distances)
+    sumdist <- sum(na.omit(distances))
   }
-  fl <- distGeo(x[1,c("centroid_lon", "centroid_lat")], x[10,c("centroid_lon", "centroid_lat")])
+  fl <- distGeo(x[1,c("centroid_lon", "centroid_lat")], x[48,c("centroid_lon", "centroid_lat")])
   obs.ratio = fl/sumdist
   
   return(list(obs = obs.ratio, rand = rand.ratios))
@@ -144,66 +146,69 @@ centroids.grids <- counts.grids.re %>%
             centroid_lon = sum(floor.lon*abundind, na.rm = TRUE)/sum(abundind, na.rm = TRUE),
             mean_total_abund = mean(abundind)) 
 
+colnames(centroids.grids)[2] <- "time.window"
+
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/bayesian-output/")
+write.csv(centroids.grids, "centroids-by-grids-raw.csv", row.names=F)
+
 #Plot centroid movement
 #map(database="world",xlim = longs, ylim = lats) #plot just on states
 #map(database = "state", add = TRUE)
 plot(bcrshp[bcrshp$WATER == 3,], ylim = lats, xlim = longs, border = "gray73", col = "gray95") #plot centroids on BCR map
 mtext("Centroids by 1 deg grid",3,cex=2,line=.5)
 
-######### CODE BREAKS HERE #######
-
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results.grids <- matrix(nrow = 33, ncol = 12)
-for(i in 1:33) {
-  species <- huang_species$aou[i]
-  results.grids[i,1] <- species
+results.grid <- matrix(nrow = length(unique(centroids.grids$aou)), ncol = 12)
+for(i in 1:length(unique(centroids.grids$aou))) {
+  species <- unique(centroids.grids$aou)[i]
+  results.grid[i,1] <- species
   df <- centroids.grids %>%
     filter(aou == species)
-  df$time.window <- df$t
+  lastrow <- nrow(df)
   
-  results.grids[i,2] <- distGeo(df[1,4:3], df[10,4:3])/1000
-  results.grids[i,3] <- results.grids[i,2]/(2016-1969)
-  results.grids[i,4] <- bearing(df[1,4:3], df[10,4:3])
-  results.grids[i,5] <- log(mean(df$mean_total_abund[9:10])/mean(df$mean_total_abund[1:2]))
+  results.grid[i,2] <- distGeo(df[1,4:3], df[48,4:3])/1000
+  results.grid[i,3] <- results.grid[i,2]/(2016-1969)
+  results.grid[i,4] <- bearing(df[1,4:3], df[48,4:3])
+  results.grid[i,5] <- log(mean(df$mean_total_abund[47:48])/mean(df$mean_total_abund[1:2]))
   distratios <- distance.ratio(centroids.grids, species, F)
-  results.grids[i,10] <- distratios$obs
-  results.grids[i,11] <- mean(distratios$rand)
-  results.grids[i,12] <- sd(distratios$rand)
+  results.grid[i,10] <- distratios$obs
+  results.grid[i,11] <- mean(distratios$rand)
+  results.grid[i,12] <- sd(distratios$rand)
   
   
   mod.test <- lm(df$centroid_lat ~ df$time.window)
   sum <- summary(mod.test)
-  results.grids[i,7] <- sum$coefficients[2,4]
-  results.grids[i,6] <- sum$coefficients[2,1]
+  results.grid[i,7] <- sum$coefficients[2,4]
+  results.grid[i,6] <- sum$coefficients[2,1]
   
   mod.test.2 <- lm(df$centroid_lon ~ df$time.window)
   sum.2 <- summary(mod.test.2)
-  results.grids[i,9] <- sum.2$coefficients[2,4]
-  results.grids[i,8] <- sum.2$coefficients[2,1]
+  results.grid[i,9] <- sum.2$coefficients[2,4]
+  results.grid[i,8] <- sum.2$coefficients[2,1]
   
   points(df$centroid_lon[1], df$centroid_lat[1], pch = 16, col = 'red')
-  points(df$centroid_lon, df$centroid_lat, type = 'l')
-  points(df$centroid_lon[10], df$centroid_lat[10], pch = 17, col = 'blue')
-  text(df$centroid_lon[10], df$centroid_lat[10]+1, species, cex = .75)
+  points(df$centroid_lon, df$centroid_lat, type = 'l', col = "gray45")
+  points(df$centroid_lon[48], df$centroid_lat[48], pch = 17, col = 'blue')
+  text(df$centroid_lon[48], df$centroid_lat[48]+1, species, cex = .75)
 }
 results.grids.df <- data.frame(aou = results.grids[,1], 
-                               shiftdist = results.grids[,2], 
-                               velocity = results.grids[,3], 
-                               bearing = results.grids[,4], 
-                               r = results.grids[,5],
-                               lat_slope = results.grids[,6], 
-                               lat_pval = results.grids[,7], 
-                               lon_slope = results.grids[,8], 
-                               lon_pval = results.grids[,9],
-                               distance_ratio = results.grids[,10],
-                               dratio_rand_mean = results.grids[,11],
-                               dratio_rand_sd = results.grids[,12])
+                               shiftdist = results.grid[,2], 
+                               velocity = results.grid[,3], 
+                               bearing = results.grid[,4], 
+                               r = results.grid[,5],
+                               lat_slope = results.grid[,6], 
+                               lat_pval = results.grid[,7], 
+                               lon_slope = results.grid[,8], 
+                               lon_pval = results.grid[,9],
+                               distance_ratio = results.grid[,10],
+                               dratio_rand_mean = results.grid[,11],
+                               dratio_rand_sd = results.grid[,12])
 
 #assign shift directions
 direction.lat <- c()
 for(i in 1:35){
-  slope <- results.grids.df$lat_slope[i]
-  pval <- results.grids.df$lat_pval[i]
+  slope <- results.grid.df$lat_slope[i]
+  pval <- results.grid.df$lat_pval[i]
   if (slope > 0 & pval < 0.05) {
     direction.lat <- c(direction.lat, "north")
   } else if (slope < 0 & pval < 0.05) {
@@ -211,12 +216,12 @@ for(i in 1:35){
   } else 
     direction.lat <- c(direction.lat, "")
 }
-results.grids.df <- cbind(results.grids.df, direction.lat)
+results.grid.df <- cbind(results.grid.df, direction.lat)
 
 direction.lon <- c()
 for(i in 1:35){
-  slope <- results.grids.df$lon_slope[i]
-  pval <- results.grids.df$lon_pval[i]
+  slope <- results.grid.df$lon_slope[i]
+  pval <- results.grid.df$lon_pval[i]
   if (slope > 0 & pval < 0.05) {
     direction.lon <- c(direction.lon, "east")
   } else if (slope < 0 & pval < 0.05) {
@@ -224,28 +229,27 @@ for(i in 1:35){
   } else 
     direction.lon <- c(direction.lon, "")
 }
-results.grids.df <- cbind(results.grids.df,direction.lon)
-results.grids.df$shiftdir <- paste(results.grids.df$direction.lat,results.grids.df$direction.lon, sep = "")
+results.grid.df <- cbind(results.grid.df,direction.lon)
+results.grid.df$shiftdir <- paste(results.grid.df$direction.lat,results.grid.df$direction.lon, sep = "")
 
 popchange <- c()
 for(i in 1:35){
-  r <- results.grids.df$r[i]
+  r <- results.grid.df$r[i]
   if (r > 0) {
     popchange <- c(popchange, "increasing")
   } else popchange <- c(popchange, "decreasing")
 }
-results.grids.df <- cbind(results.grids.df, popchange)
-setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-grids/")
-write.csv(results.grids.df, "centroids-by-grids-results.csv", row.names=F)
+results.grid.df <- cbind(results.grid.df, popchange)
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/bayesian-output/")
+write.csv(results.grid.df, "centroids-by-grids-results.csv", row.names=F)
 final.grids.df <- data.frame(species = huang_species$species, 
                              aou= huang_species$aou, 
-                             shiftdistance = results.grids.df$shiftdist, 
-                             velocity = results.grids.df$velocity, 
-                             direction = results.grids.df$shiftdir, 
-                             abundance = results.grids.df$popchange,
-                             distanceratio = results.grids.df$distance_ratio)
+                             shiftdistance = results.grid.df$shiftdist, 
+                             velocity = results.grid.df$velocity, 
+                             direction = results.grid.df$shiftdir, 
+                             abundance = results.grid.df$popchange,
+                             distanceratio = results.grid.df$distance_ratio)
 write.csv(final.grids.df, "results-grids-summarized.csv", row.names=F)
-
 
 ####### Centroids by strata ########
 
@@ -268,39 +272,38 @@ polys.merged.land <- subset(polys.merged, WATER == 3) #remove centroids for bodi
 #merge strata centroids with routes
 routes.short$statebcr <- routes.short$statenum*1000 + routes.short$bcr
 polys.merged.land$statebcr <- polys.merged.land$statenum*1000 + polys.merged.land$BCR
-routes.short.centers <- merge(routes.short, polys.merged.land, by = "statebcr")
-counts.gridsd.centers <- merge(routes.short.centers, counts.short, by = c("stateroute","year"))
+routes.short.centers <- left_join(routes.short, polys.merged.land, by = "statebcr")
+counts.strata.centers <- right_join(routes.short.centers, counts.strata)
 
-subs.routes4 <- counts.gridsd.centers %>%
+subs.routes4 <- counts.strata.centers %>%
   group_by(aou, statebcr) %>%
   distinct(stateroute) %>%
   summarize(total = n()) %>%
   filter(total > 4)
 
 bcrroutes <- routes.short.centers %>%
-  group_by(statebcr, time.window) %>%
+  group_by(statebcr, year) %>%
   select(stateroute) %>%
   summarize(total.routes = n())
 
-counts.gridsd.subs.strata <- merge(counts.gridsd.centers, subs.routes4, by = c("aou","statebcr"))
-counts.gridsd.subs.strata <- merge(counts.gridsd.subs.strata, bcrroutes, by = c("statebcr", "time.window"))
+counts.subs.strata <- inner_join(counts.strata.centers, subs.routes4) %>%
+  left_join(bcrroutes)
 
 #mean centroid for each species in five year time windows per bcr/state strata
-spp_abund_means_bcr <- counts.gridsd.subs.strata %>%
-  group_by(statebcr, x, y, stateroute, bcr, latitude, longitude, aou, time.window) %>%
-  summarize(avg_abund = sum(speciestotal, na.rm = TRUE)/mean(total.routes))
-
-centroids.bcr <- spp_abund_means_bcr %>%
-  group_by(aou, time.window, statebcr) %>%
-  summarize(centroid_lat = sum(y*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE), centroid_lon = sum(x*avg_abund, na.rm = TRUE)/sum(avg_abund, na.rm = TRUE),
-            mean_total_abund = mean(avg_abund))
+centroids.bcr <- counts.subs.strata %>%
+  group_by(aou, t, statebcr) %>%
+  summarize(centroid_lat = sum(y*abundind, na.rm = TRUE)/sum(abundind, na.rm = TRUE), centroid_lon = sum(x*abundind, na.rm = TRUE)/sum(abundind, na.rm = TRUE),
+            mean_total_abund = mean(abundind))
 
 #mean centroid weighted from bcr centroids
 centroids.bcr2 <- centroids.bcr %>%
-  group_by(aou, time.window) %>%
+  group_by(aou, t) %>%
   summarize(centroid_lat = sum(centroid_lat*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE), centroid_lon = sum(centroid_lon*mean_total_abund, na.rm = TRUE)/sum(mean_total_abund, na.rm = TRUE),
             mean_total_abund = mean(mean_total_abund))
-setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata/")
+
+colnames(centroids.bcr2)[2] <- "time.window"
+
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/bayesian-output/")
 write.csv(centroids.bcr2, "centroids-by-strata.csv", row.names=F)
 
 #Plot centroid movement
@@ -310,18 +313,18 @@ plot(bcrshp[bcrshp$WATER == 3,], ylim = lats, xlim = longs, border = "gray73", c
 mtext("Centroids by strata",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results.bcr <- matrix(nrow = 35, ncol = 12)
-for(i in 1:35) {
-  species <- huang_species$aou[i]
+results.bcr <- matrix(nrow = length(unique(centroids.bcr2$aou)), ncol = 12)
+for(i in 1:length(unique(centroids.bcr2$aou))) {
+  species <- unique(centroids.bcr2$aou)[i]
   results.bcr[i,1] <- species
   df <- centroids.bcr2 %>%
     filter(aou == species)
   
-  results.bcr[i,2] <- distGeo(df[1,4:3], df[10,4:3])/1000
+  results.bcr[i,2] <- distGeo(df[1,4:3], df[48,4:3])/1000
   results.bcr[i,3] <- results.bcr[i,2]/(2016-1969)
-  results.bcr[i,4] <- bearing(df[1,4:3], df[10,4:3])
-  results.bcr[i,5] <- log(mean(df$mean_total_abund[9:10])/mean(df$mean_total_abund[1:2]))
-  distratios <- distance.ratio(centroids.bcr2, species, T)
+  results.bcr[i,4] <- bearing(df[1,4:3], df[48,4:3])
+  results.bcr[i,5] <- log(mean(df$mean_total_abund[47:48])/mean(df$mean_total_abund[1:2]))
+  distratios <- distance.ratio(centroids.bcr2, species, F)
   results.bcr[i,10] <- distratios$obs
   results.bcr[i,11] <- mean(distratios$rand)
   results.bcr[i,12] <- sd(distratios$rand)
@@ -337,11 +340,9 @@ for(i in 1:35) {
   results.bcr[i,8] <- sum.2$coefficients[2,1]
   
   points(df$centroid_lon[1], df$centroid_lat[1], pch = 16, col = 'red')
-  points(df$centroid_lon, df$centroid_lat, type = 'l')
-  points(df$centroid_lon[10], df$centroid_lat[10], pch = 17, col = 'blue')
-  text(df$centroid_lon[10], df$centroid_lat[10]+1, species, cex = .75)
-  
-  
+  points(df$centroid_lon, df$centroid_lat, type = 'l', col = "gray45")
+  points(df$centroid_lon[48], df$centroid_lat[48], pch = 17, col = 'blue')
+  text(df$centroid_lon[48], df$centroid_lat[48]+1, species, cex = .75)
 }
 results.bcr.df <- data.frame(aou = results.bcr[,1], 
                              shiftdist = results.bcr[,2], 
@@ -393,11 +394,10 @@ for(i in 1:35){
 }
 results.bcr.df <- cbind(results.bcr.df, popchange)
 
-setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata/")
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/bayesian-output/")
 write.csv(results.bcr.df, "centroids-by-strata-results.csv", row.names=F)
 
-final.bcr.df <- data.frame(species = huang_species$species, 
-                           aou= huang_species$aou, 
+final.bcr.df <- data.frame(aou= unique(centroids.bcr2$aou), 
                            shiftdistance = results.bcr.df$shiftdist, 
                            velocity = results.bcr.df$velocity, 
                            direction = results.bcr.df$shiftdir, 
@@ -414,11 +414,12 @@ write.csv(final.bcr.df, "results-strata-summarized.csv", row.names=F)
 #requires polys.merged.land, df of statebcr strata containing Shape_Area for each strata
 #requires routes.short.centers, df containing statebcrs and routes assigned to each strata
 #returns abundance index weighted by scaling factors A and Z
-abund.index <- function(year, spid, strata) {
+abund.index <- function(year, spid, statebcr) {
+  test <- as.character(statebcr)
   ai <- spp_abund_means_bcr %>%
     filter(time.window == year) %>%
     filter(aou == spid) %>%
-    filter(statebcr == strata)
+    filter(statebcr == test)
   total.area <- sum(polys.merged.land$Shape_Area[polys.merged.land$statebcr %in% spp_abund_means_bcr$statebcr[spp_abund_means_bcr$aou == spid]])
   a <- polys.merged.land$Shape_Area[polys.merged.land$statebcr == strata]/total.area
   z <- length(unique(ai$stateroute))/length(unique(routes.short.centers$stateroute[routes.short.centers$statebcr == strata]))
@@ -427,42 +428,36 @@ abund.index <- function(year, spid, strata) {
   return(index)
 }
 
-abundance.indices <- data.frame(statebcr = 0, x = 0, y = 0, bcr = 0, aou = 0, time.window = 0, abund.index = 0)
+colnames(spp_abund_means_bcr)[9] <- "time.window"
+abundance.indices <- data.frame(statebcr = 0, x = 0, y = 0, aou = 0, time.window = 0, abund.index = 0)
 
 #Takes a really long time ~16 hours
 init.time = Sys.time()
-for(i in 1:length(huang_species$aou)) {
-  species <- huang_species$aou[i]
+for(i in 1:length(unique(centroids.bcr2$aou))) {
+  species <- unique(centroids.bcr2$aou)[i]
   bcrs <- spp_abund_means_bcr %>%
     filter(aou == species) 
   bcr.list <- unique(bcrs$statebcr)
   for(b in bcr.list) {
-    for(year in seq(1969, 2016, by = 5)) {
+    for(year in seq(1, 48)) {
       if(b %in% bcrs$statebcr[bcrs$time.window == year]){
         tseries <- bcrs %>%
           filter(time.window == year, statebcr == b) 
         index <- abund.index(year, species, b)
         data <- data.frame(statebcr = b, x = tseries$x[tseries$statebcr == b], y = tseries$y[tseries$statebcr == b],
-                           bcr = tseries$bcr[tseries$statebcr == b],
                            aou = species, time.window = year, abund.index = index)
-        abundance.indices <- rbind(abundance.indices, unique(data))
+        abundance.indices <- bind_rows(abundance.indices, unique(data))
       } else {
         data <- data.frame(statebcr = b, x = NA, y = NA,
                            bcr = NA,
                            aou = species, time.window = year, abund.index = NA)
-        abundance.indices <- rbind(abundance.indices, unique(data))
+        abundance.indices <- bind_rows(abundance.indices, unique(data))
       }
     }
   }
-  curr.time = Sys.time()
-  elapsed = curr.time - init.time
-  percelltime = elapsed/i
-  estimated.end = (length(huang_all_species$aou) - i)*percelltime + curr.time
-  print(paste(i, "out of", length(huang_species$aou), "; current time:", curr.time,
-              "; estimated end time:", estimated.end))
 }
 abundance.indices <- abundance.indices[-1,]
-setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata-weighted-abund/")
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/bayesian-output/")
 write.csv(abundance.indices, "weighted-abundance-indices-centroids.csv", row.names = F)
 
 #mean centroid weighted from strata specific abund indices
@@ -477,17 +472,17 @@ plot(bcrshp[bcrshp$WATER == 3,], ylim = c(26,60), xlim = c(-140,-60), border = "
 mtext("Centroids by strata with weighted abundance index",3,cex=2,line=.5)
 
 #shifted distance, velocity, bearing of shift, population change, shift direction regression
-results.weighted <- matrix(nrow = 35, ncol = 12)
-for(i in 1:35) {
-  species <- huang_species$aou[i]
+results.weighted <- matrix(nrow = length(unique(centroids.bcr2$aou)), ncol = 12)
+for(i in 1:length(unique(centroids.bcr2$aou))) {
+  species <- unique(centroids.bcr2$aou)[i]
   results.weighted[i,1] <- species
   df <- centroids.weighted %>%
     filter(aou == species)
   
-  results.weighted[i,2] <- distGeo(df[1,4:3], df[10,4:3])/1000
+  results.weighted[i,2] <- distGeo(df[1,4:3], df[48,4:3])/1000
   results.weighted[i,3] <- results.weighted[i,2]/(2016-1969)
-  results.weighted[i,4] <- bearing(df[1,4:3], df[10,4:3])
-  results.weighted[i,5] <- log(mean(df$mean_total_ai[9:10])/mean(df$mean_total_ai[1:2]))
+  results.weighted[i,4] <- bearing(df[1,4:3], df[48,4:3])
+  results.weighted[i,5] <- log(mean(df$mean_total_ai[47:48])/mean(df$mean_total_ai[1:2]))
   distratios <- distance.ratio(centroids.weighted, species, F)
   results.weighted[i,10] <- distratios$obs
   results.weighted[i,11] <- mean(distratios$rand)
@@ -504,9 +499,9 @@ for(i in 1:35) {
   results.weighted[i,8] <- sum.2$coefficients[2,1]
   
   points(df$centroid_lon[1], df$centroid_lat[1], pch = 16, col = 'red')
-  points(df$centroid_lon, df$centroid_lat, type = 'l')
-  points(df$centroid_lon[10], df$centroid_lat[10], pch = 17, col = 'blue')
-  text(df$centroid_lon[10], df$centroid_lat[10]+1, species, cex = .75)
+  points(df$centroid_lon, df$centroid_lat, type = 'l', col = "gray45")
+  points(df$centroid_lon[48], df$centroid_lat[48], pch = 17, col = 'blue')
+  text(df$centroid_lon[48], df$centroid_lat[48]+1, species, cex = .75)
   
   
 }
@@ -525,7 +520,7 @@ results.weighted.df <- data.frame(aou = results.weighted[,1],
 
 #assign shift directions
 direction.lat <- c()
-for(i in 1:35){
+for(i in 1:34){
   slope <- results.weighted.df$lat_slope[i]
   pval <- results.weighted.df$lat_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -538,7 +533,7 @@ for(i in 1:35){
 results.weighted.df <- cbind(results.weighted.df, direction.lat)
 
 direction.lon <- c()
-for(i in 1:35){
+for(i in 1:34){
   slope <- results.weighted.df$lon_slope[i]
   pval <- results.weighted.df$lon_pval[i]
   if (slope > 0 & pval < 0.05) {
@@ -552,7 +547,7 @@ results.weighted.df <- cbind(results.weighted.df,direction.lon)
 results.weighted.df$shiftdir <- paste(results.weighted.df$direction.lat,results.weighted.df$direction.lon, sep = "")
 
 popchange <- c()
-for(i in 1:35){
+for(i in 1:34){
   r <- results.weighted.df$r[i]
   if (r > 0) {
     popchange <- c(popchange, "increasing")
@@ -560,11 +555,11 @@ for(i in 1:35){
 }
 results.weighted.df <- cbind(results.weighted.df, popchange)
 
-setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/centroids-by-strata-weighted-abund/")
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/bayesian-output/")
 write.csv(results.weighted.df, "centroids-weighted-results.csv", row.names=F)
 
-final.weighted.df <- data.frame(species = huang_species$species, 
-                                aou= huang_species$aou, 
+final.weighted.df <- data.frame( 
+                                aou= results.weighted.df$aou, 
                                 shiftdistance = results.weighted.df$shiftdist, 
                                 velocity = results.weighted.df$velocity, 
                                 direction = results.weighted.df$shiftdir, 
@@ -572,3 +567,4 @@ final.weighted.df <- data.frame(species = huang_species$species,
                                 distanceratio = results.weighted.df$distance_ratio)
 write.csv(final.weighted.df, "results-strata-weighted-summarized.csv", row.names=F)
 
+##### Summary plots #####
