@@ -568,3 +568,38 @@ final.weighted.df <- data.frame(
 write.csv(final.weighted.df, "results-strata-weighted-summarized.csv", row.names=F)
 
 ##### Summary plots #####
+
+setwd("C:/Users/gdicecco/Desktop/git/bbs-centroid/bayesian-output/")
+final.grids.df <- read.csv("results-grids-summarized.csv", stringsAsFactors = F)
+final.bcr.df <- read.csv("results-strata-summarized.csv", stringsAsFactors = F)
+final.weighted.df <- read.csv("results-strata-weighted-summarized.csv", stringsAsFactors = F)
+
+#centroids by grid
+final.grids.df$analysis <- rep(x = "By grid", times = nrow(final.grids.df))
+#centroids by bcr
+final.bcr.df$analysis <- rep(x = "By strata", times = nrow(final.bcr.df))
+#centroids weighted
+final.weighted.df$analysis <- rep(x = "By strata with weighted abund.", times = nrow(final.weighted.df))
+#huang data
+huang_species$distanceratio <- rep(NA)
+huang_species$analysis <- rep(x = "Huang et al.", times = nrow(huang_species))
+
+compiled.df <- rbind(final.grids.df[, -1], final.bcr.df, final.weighted.df, huang_species[, -1])
+
+blank <- theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+                            panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+
+#compare shift distance
+##boxplot
+ggplot(compiled.df, aes(analysis, shiftdistance)) + theme_bw() + geom_boxplot(fill = "gray") + labs(x = "Analysis", y = "Shift Distance") + blank
+
+
+#Polar plot
+compiled.df$direction <- factor(compiled.df$direction, levels = c("north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"))
+
+plot <- ggplot(compiled.df, aes(x = direction, fill = analysis))+stat_count()+theme_bw()+labs(x = "Direction of centroid shift", y = "Number of Species") +
+  facet_wrap(~analysis, ncol = 4)+theme(axis.text.x = element_text(face = "bold", size = 7.5), legend.position = "none") + scale_fill_brewer(palette = "Set1")
+
+plot + coord_polar(start = -pi/8, direction = 1)
+
+ggplot(compiled.df, aes(x = aou, y = shiftdistance, color = analysis)) + theme_bw() + geom_point() + scale_color_brewer(palette = "Set1") + labs(x = "AOU", y = "Shift Distance", color = "Analysis")
